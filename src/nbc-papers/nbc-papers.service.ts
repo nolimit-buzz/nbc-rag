@@ -7,6 +7,7 @@ import { MongoDBAtlasVectorSearch } from '@langchain/mongodb';
 import { ChatOpenAI, OpenAIEmbeddings } from '@langchain/openai';
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import { PromptTemplate } from "@langchain/core/prompts";
+import MarkdownIt from 'markdown-it';
 import { ObjectId } from 'mongodb';
 
 export interface Section {
@@ -239,9 +240,6 @@ export class NbcPapersService {
     private async extractSectionsToHtml(markdown: string): Promise<Section[]> {
         const sections: Section[] = [];
         
-        // Dynamic import for marked library
-        const { marked } = await import('marked');
-
         // Updated regex to capture both numbered (### 1.) and named (###) sections
         const regex = /###\s*(?:\d+\.\s*)?(.+?)(?=\n###|$)/gs;
 
@@ -257,7 +255,7 @@ export class NbcPapersService {
 
             // Only process sections with actual content
             if (body && body.length > 0) {
-                const html = await marked(body);
+                const html = await this.markdownToHtml(body);
 
                 sections.push({
                     title,
@@ -278,7 +276,7 @@ export class NbcPapersService {
                 const body = bodyLines.join("\n").trim();
 
                 if (body && body.length > 0) {
-                    const html = await marked(body);
+                    const html = await this.markdownToHtml(body);
 
                     sections.push({
                         title,
@@ -289,6 +287,11 @@ export class NbcPapersService {
         }
 
         return sections;
+    }
+
+    private async markdownToHtml(markdown: string): Promise<string> {
+        const md = new MarkdownIt();
+        return md.render(markdown);
     }
 
     async regenerateNbcPaper(id: string, section: string, nbcPaper: CreateNbcPaperDto) {
