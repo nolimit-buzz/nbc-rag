@@ -1,6 +1,7 @@
-import { Controller, Post ,Get, Body, Param} from '@nestjs/common';
+import { Controller, Post ,Get, Body, Param, Put} from '@nestjs/common';
 import { NbcPapersService } from './nbc-papers.service';
 import { CreateNbcPaperDto } from './create-nbc-paper.dto';
+import { UpdateNbcPaperDto } from './update-nbc-paper.dto';
 
 @Controller('nbc-papers')
 export class NbcPapersController {
@@ -15,6 +16,21 @@ export class NbcPapersController {
     async createNbcPaper(@Body() nbcPaper: CreateNbcPaperDto) {
         return this.nbcPapersService.createNbcPaper(nbcPaper);
     }
+
+    @Put(':id')
+    async updateNbcPaper(@Param('id') id: string, @Body() updateNbcPaperDto: UpdateNbcPaperDto) {
+        return this.nbcPapersService.updateNbcPaper(id, updateNbcPaperDto);
+    }
+
+    @Put(':id/section/:sectionKey')
+    async updateNbcPaperSection(
+        @Param('id') id: string, 
+        @Param('sectionKey') sectionKey: string,
+        @Body() sectionData: { title: string; htmlContent: string }
+    ) {
+        return this.nbcPapersService.updateNbcPaperSection(id, sectionKey, sectionData);
+    }
+
     @Post('regenerate/:id')
     async regenerateNbcPaper(@Param('id') id: string, @Body() body: {section: string, nbcPaper: CreateNbcPaperDto}) {
         return this.nbcPapersService.regenerateNbcPaper(id, body.section, body.nbcPaper);

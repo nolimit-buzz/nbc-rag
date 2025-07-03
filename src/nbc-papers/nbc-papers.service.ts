@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { MongodbService } from '../mongodb/mongodb.service';
 import { CreateNbcPaperDto } from './create-nbc-paper.dto';
+import { UpdateNbcPaperDto } from './update-nbc-paper.dto';
 import { tool } from "@langchain/core/tools";
 import z from 'zod';
 import { MongoDBAtlasVectorSearch } from '@langchain/mongodb';
@@ -12,7 +13,7 @@ import { ObjectId } from 'mongodb';
 
 export interface Section {
     title: string;
-    html: string;
+    htmlContent: string;
 }
 
 const prompt = (data: CreateNbcPaperDto, context: any) => `
@@ -132,7 +133,84 @@ export class NbcPapersService {
         return collection.find({}).toArray();
     }
 
-    async createNbcPaper(nbcPapers: CreateNbcPaperDto) {
+    async updateNbcPaper(id: string, updateNbcPaperDto: UpdateNbcPaperDto) {
+        const collection = await this.mongodbService.connect(this.collectionName);
+        
+        // Check if the NBC paper exists
+        const existingPaper = await collection.findOne({ _id: new ObjectId(id) });
+        if (!existingPaper) {
+            throw new Error('NBC Paper not found');
+        }
+
+        // Prepare update data with updatedAt timestamp
+        const updateData = {
+            ...updateNbcPaperDto,
+            updatedAt: new Date()
+        };
+
+        // Remove undefined values
+        Object.keys(updateData).forEach(key => {
+            if (updateData[key] === undefined) {
+                delete updateData[key];
+            }
+        });
+
+        const result = await collection.updateOne(
+            { _id: new ObjectId(id) },
+            { $set: updateData }
+        );
+
+        if (result.matchedCount === 0) {
+            throw new Error('NBC Paper not found');
+        }
+        
+        // Return the updated document
+        const updatedPaper = await collection.findOne({ _id: new ObjectId(id) });
+        return {
+            success: true,
+            message: 'NBC Paper updated successfully',
+            updatedPaper
+        };
+    }
+
+    async updateNbcPaperSection(id: string, sectionKey: string, sectionData: { title: string; htmlContent: string }) {
+        const collection = await this.mongodbService.connect(this.collectionName);
+        
+        // Check if the NBC paper exists
+        const existingPaper = await collection.findOne({ _id: new ObjectId(id) });
+        if (!existingPaper) {
+            throw new Error('NBC Paper not found');
+        }
+
+        // Update the specific section
+        const updateData = {
+            [`content.${sectionKey}`]: {
+                title: sectionData.title,
+                htmlContent: sectionData.htmlContent
+            },
+            updatedAt: new Date()
+        };
+
+        const result = await collection.updateOne(
+            { _id: new ObjectId(id) },
+            { $set: updateData }
+        );
+
+        if (result.matchedCount === 0) {
+            throw new Error('NBC Paper not found');
+        }
+
+        // Return the updated document
+        const updatedPaper = await collection.findOne({ _id: new ObjectId(id) });
+        return {
+            success: true,
+            message: `Section "${sectionKey}" updated successfully`,
+            updatedSection: updateData[`content.${sectionKey}`],
+            updatedPaper
+        };
+    }
+
+    async getCompanyInfo(nbcPaper: CreateNbcPaperDto) {
         const collection = await this.mongodbService.connect("documents");
         const embeddings = new OpenAIEmbeddings({
             model: "text-embedding-3-small",
@@ -188,21 +266,31 @@ export class NbcPapersService {
                 },
                 {
                     role: "user",
-                    content: `Give me all the information regarding ${nbcPapers.companyName}`
+                    content: `Give me all the information regarding ${nbcPaper.companyName}`
                 }
             ],
         });
-        // console.log("agentResult",agentResult);
+        console.log("agentResult", agentResult);
+        return agentResult;
+    }
+
+    async createNbcPaper(nbcPaper: CreateNbcPaperDto) {
+        const agentResult = await this.getCompanyInfo(nbcPaper);
         const lastToolMessage = agentResult.messages.at(-2)?.content as string;
         const docs = lastToolMessage as string;
-        console.log("docs", docs);
 
-        const question = PromptTemplate.fromTemplate(prompt(nbcPapers, docs));
+        const llm = new ChatOpenAI({
+            model: "gpt-4o",
+            temperature: 0.1,
+            streaming: true,
+        });
+
+        const question = PromptTemplate.fromTemplate(prompt(nbcPaper, docs));
         const ragChain = question.pipe(llm);
 
         const response = await ragChain.invoke({
             context: docs,
-            data: nbcPapers,
+            data: nbcPaper,
         });
 
         const parsedResponse = await this.extractSectionsToHtml(response.content.toString());
@@ -231,10 +319,32 @@ export class NbcPapersService {
                     return section.title;
             }
         };
-        const nbcPaperData = parsedResponse.reduce((acc, section) => ({ ...acc, content: { ...acc.content, [getSectionTitle(section)]: { title: section.title, htmlContent: section.html } } }), { title: `NBC Paper for ${nbcPapers.companyName} - ${nbcPapers.transactionType}`, createdAt: new Date(), author: "InfraCredit", companyName: nbcPapers.companyName, transactionType: nbcPapers.transactionType, structuringLeads: nbcPapers.structuringLeads, sponsors: nbcPapers.sponsors, projectDetails: nbcPapers.projectDetails, content: {}, status: "draft", htmlContent: response.content.toString(), updatedAt: new Date() });
+        
+        const content: any = {};
+        parsedResponse.forEach(section => {
+            content[getSectionTitle(section)] = { 
+                title: section.title, 
+                htmlContent: section.htmlContent 
+            };
+        });
 
-        const nbcPaper = await nbcPaperCollection.insertOne(nbcPaperData);
-        return { success: true, nbcPaper };
+        const nbcPaperData = {
+            title: `NBC Paper for ${nbcPaper.companyName} - ${nbcPaper.transactionType}`,
+            createdAt: new Date(),
+            author: "InfraCredit",
+            companyName: nbcPaper.companyName,
+            transactionType: nbcPaper.transactionType,
+            structuringLeads: nbcPaper.structuringLeads,
+            sponsors: nbcPaper.sponsors,
+            projectDetails: nbcPaper.projectDetails,
+            content,
+            status: "draft",
+            htmlContent: response.content.toString(),
+            updatedAt: new Date()
+        };
+
+        const newNbcPaper = await nbcPaperCollection.insertOne(nbcPaperData);
+        return { success: true, newNbcPaper };
     }
 
     private async extractSectionsToHtml(markdown: string): Promise<Section[]> {
@@ -259,7 +369,7 @@ export class NbcPapersService {
 
                 sections.push({
                     title,
-                    html
+                    htmlContent: html
                 });
             }
         }
@@ -280,7 +390,7 @@ export class NbcPapersService {
 
                     sections.push({
                         title,
-                        html
+                        htmlContent: html
                     });
                 }
             }
@@ -302,29 +412,42 @@ export class NbcPapersService {
         if (!existingPaper) {
             throw new Error('NBC Paper not found');
         }
+        const agentResult = await this.getCompanyInfo(nbcPaper);
+        const lastToolMessage = agentResult.messages.at(-2)?.content as string;
+        const docs = lastToolMessage as string;
 
         const llm = new ChatOpenAI({
             model: "gpt-4o",
             temperature: 0.1,
             streaming: true,
         });
-        const sectionPrompt = this.createSectionPrompt(section, nbcPaper, existingPaper);
+        const sectionPrompt = this.createSectionPrompt(section, nbcPaper, docs);
         const question = PromptTemplate.fromTemplate(sectionPrompt);
         const ragChain = question.pipe(llm);
 
         const response = await ragChain.invoke({
-            context: existingPaper,
+            context: docs,
             data: nbcPaper,
         });
 
         const regeneratedSection = await this.extractSectionsToHtml(response.content.toString());
-
-        // Update the specific section in the database
-        const updatedData = { ...existingPaper };
-        regeneratedSection.forEach(sectionData => {
-            updatedData[sectionData.title] = sectionData.html;
-        });
-
+        const getDescriptiveTitle = (section: string) => {
+            switch (section) {
+                case "summary_table":
+                    return "Document Header & Summary Table";
+                case "company_overview":
+                    return "Company & Project Overview";
+                case "transaction_overview":
+                    return "Transaction Overview";
+                case "market_overview":
+                    return "Market Overview";
+                default:
+                    return section;
+            }
+        };
+        console.log("regeneratedSection", regeneratedSection);
+        const updatedData = { ...existingPaper, content: { ...existingPaper.content, [section]: { title: getDescriptiveTitle(section), htmlContent: regeneratedSection[0].htmlContent } } };
+        console.log("updatedData", updatedData);
         const result = await nbcPaperCollection.updateOne(
             { _id: new ObjectId(id) },
             { $set: updatedData }
@@ -338,7 +461,7 @@ export class NbcPapersService {
         };
     }
 
-    private createSectionPrompt(section: string, data: CreateNbcPaperDto, existingPaper: any): string {
+    private createSectionPrompt(section: string, data: CreateNbcPaperDto, docs: string): string {
         const sectionTemplates = {
             "summary_table": `
 You are regenerating Section 1 (Document Header & Summary Table) of an NBC Paper. Follow the EXACT format below:
@@ -363,7 +486,7 @@ Project Summary Table:
 | Policy Exceptions | [List any applicable policy exceptions or state "Not applicable"] |
 
 Use the context data to inform your analysis. Generate ONLY this section with the exact format shown above.
-**Context Data**: ${existingPaper}
+**Context Data**: ${docs}
 **Transaction Details**: ${data}
 `,
 
@@ -394,7 +517,7 @@ You are regenerating Section 2 (Company & Project Overview) of an NBC Paper. Wri
 - Revenue projections and growth trajectory
 
 Use the context data to inform your analysis. Generate ONLY this section.
-**Context Data**: ${existingPaper}
+**Context Data**: ${docs}
 **Transaction Details**: ${data}
 `,
 
@@ -423,7 +546,7 @@ You are regenerating Section 3 (Transaction Overview) of an NBC Paper. Write 600
 - Contingency provisions
 
 Use the context data to inform your analysis. Generate ONLY this section.
-**Context Data**: ${existingPaper}
+**Context Data**: ${docs}
 **Transaction Details**: ${data}
 `,
 
@@ -451,7 +574,7 @@ You are regenerating Section 4 (Market Overview) of an NBC Paper. Write 800-1000
 - Market consolidation trends
 
 Use the context data to inform your analysis. Generate ONLY this section.
-**Context Data**: ${existingPaper}
+**Context Data**: ${docs}
 **Transaction Details**: ${data}
 `,
 
@@ -469,7 +592,7 @@ You are regenerating Section 5 (Key Strengths & Value Proposition) of an NBC Pap
 - Regulatory alignment and government backing
 
 Use the context data to inform your analysis. Generate ONLY this section.
-**Context Data**: ${existingPaper}
+**Context Data**: ${docs}
 **Transaction Details**: ${data}
 `,
 
@@ -503,7 +626,7 @@ You are regenerating Section 6 (Critical Areas for Due Diligence) of an NBC Pape
 - Succession planning and key person risk
 
 Use the context data to inform your analysis. Generate ONLY this section.
-**Context Data**: ${existingPaper}
+**Context Data**: ${docs}
 **Transaction Details**: ${data}
 `,
 
@@ -531,7 +654,7 @@ You are regenerating Section 7 (Development Impact) of an NBC Paper. Write 400-5
 - Health and safety improvements
 
 Use the context data to inform your analysis. Generate ONLY this section.
-**Context Data**: ${existingPaper}
+**Context Data**: ${docs}
 **Transaction Details**: ${data}
 `,
 
@@ -546,7 +669,7 @@ You are regenerating Section 8 (Initial Risk Assessment) of an NBC Paper. Write 
 - Monitoring and reporting requirements
 
 Use the context data to inform your analysis. Generate ONLY this section.
-**Context Data**: ${existingPaper}
+**Context Data**: ${docs}
 **Transaction Details**: ${data}
 `,
 
@@ -585,9 +708,8 @@ Commentary/Recommendation:
 [Generate specific recommendations]
 
 Use the context data to inform your analysis. Generate ONLY this section with the exact format shown above.
-**Context Data**: ${existingPaper}
+**Context Data**: ${docs}
 **Transaction Details**: ${data}
-**Existing Paper**: ${existingPaper}
 `
         };
 
