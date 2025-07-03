@@ -7,7 +7,6 @@ import { MongoDBAtlasVectorSearch } from '@langchain/mongodb';
 import { ChatOpenAI, OpenAIEmbeddings } from '@langchain/openai';
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import { PromptTemplate } from "@langchain/core/prompts";
-import { marked } from 'marked';
 import { ObjectId } from 'mongodb';
 
 export interface Section {
@@ -239,6 +238,9 @@ export class NbcPapersService {
 
     private async extractSectionsToHtml(markdown: string): Promise<Section[]> {
         const sections: Section[] = [];
+        
+        // Dynamic import for marked library
+        const { marked } = await import('marked');
 
         // Updated regex to capture both numbered (### 1.) and named (###) sections
         const regex = /###\s*(?:\d+\.\s*)?(.+?)(?=\n###|$)/gs;
