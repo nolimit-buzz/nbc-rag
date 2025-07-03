@@ -7,7 +7,7 @@ import { MongoDBAtlasVectorSearch } from '@langchain/mongodb';
 import { ChatOpenAI, OpenAIEmbeddings } from '@langchain/openai';
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import { PromptTemplate } from "@langchain/core/prompts";
-import MarkdownIt from 'markdown-it';
+import * as MarkdownIt from 'markdown-it';
 import { ObjectId } from 'mongodb';
 
 export interface Section {
