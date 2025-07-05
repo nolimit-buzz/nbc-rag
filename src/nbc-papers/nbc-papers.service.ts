@@ -390,7 +390,7 @@ export class NbcPapersService {
         const nbcPaperData = {
             title: `NBC Paper for ${nbcPaper.companyName} - ${nbcPaper.transactionType}`,
             createdAt: new Date(),
-            author: "InfraCredit",
+            author: "Chinua Azubuike",
             companyName: nbcPaper.companyName,
             transactionType: nbcPaper.transactionType,
             structuringLeads: nbcPaper.structuringLeads,
