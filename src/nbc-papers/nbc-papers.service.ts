@@ -21,6 +21,8 @@ You are an expert financial analyst and credit structuring specialist for InfraC
 
 IMPORTANT: You MUST use the EXACT section headers and structure shown below. Start each section with the exact header format (### 1., ### 2., etc.) and follow the table formats precisely.
 
+${context ? 'CONTEXT DATA AVAILABLE: Use the provided context data to inform your analysis.' : 'NO CONTEXT DATA: Generate realistic, industry-standard data based on the company name, sector, and transaction type. Use your knowledge of typical Nigerian infrastructure projects and financial structures to create comprehensive, professional content.'}
+
 ## TEMPLATE TO FOLLOW EXACTLY:
 
 ### 1. Document Header & Summary Table
@@ -30,45 +32,99 @@ IMPORTANT: You MUST use the EXACT section headers and structure shown below. Sta
 |-------|---------|
 | Deal Name | [Create professional deal name based on ${data.companyName} and project scope] |
 | Reference Number | NB[XXX] (use sequential numbering) |
-| Sector | [Determine from context data and project details] |
+| Sector | [${context ? 'Determine from context data and project details' : 'Infer from company name and project details, or use common Nigerian infrastructure sectors (Power, Transportation, Water, Telecommunications, etc.)'}] |
 | Transaction Type | ${data.transactionType} |
 | Circulation Date | ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })} |
 | Structuring Leads | ${data.structuringLeads} |
 | Sponsors | ${data.sponsors} |
-| Portfolio Exposure (NGN) | [Calculate based on existing sector exposure if available] |
-| Total Limit | [Specify requested amount and sector aggregate] |
+| Portfolio Exposure (NGN) | [${context ? 'Calculate based on existing sector exposure if available' : 'Generate realistic sector exposure figures (typically NGN 5-50 billion for infrastructure projects)'}] |
+| Total Limit | [${context ? 'Specify requested amount and sector aggregate' : 'Generate realistic transaction size based on sector and company profile (typically NGN 1-20 billion)'}] |
 | Beneficiary | ${data.companyName} |
-| Tenor | [Specify loan tenor from project details] |
-| Initial E&S Categorisation | [Determine environmental and social risk category] |
-| Policy Exceptions | [List any applicable policy exceptions or state "Not applicable"] |
+| Tenor | [${context ? 'Specify loan tenor from project details' : 'Generate appropriate tenor for sector (typically 5-15 years for infrastructure)'}] |
+| Initial E&S Categorisation | [${context ? 'Determine environmental and social risk category' : 'Assign realistic E&S category (A, B, or C) based on project type and sector'}] |
+| Policy Exceptions | [${context ? 'List any applicable policy exceptions or state "Not applicable"' : 'Generate realistic policy considerations or state "Not applicable"'}] |
 
 ### 2. Company & Project Overview
 
-[Write 800-1000 words covering company background, project details, and financial structure using the context data and ${data.projectDetails}]
+[Write 800-1000 words covering:
+${context ? 
+'- Company background using context data' : 
+'- Company background (generate realistic company history, typically 5-20 years in operation)'
+}
+- Project details using ${data.projectDetails}
+${context ? 
+'- Financial structure using context data' : 
+'- Financial structure (generate realistic capital structure, debt-to-equity ratios typical for the sector)'
+}
+${!context ? '- Generate realistic project scope, implementation timeline, and key milestones' : ''}
+${!context ? '- Include typical project costs and financing arrangements for the sector' : ''}
+]
 
 ### 3. Transaction Overview
 
-[Write 600-800 words covering transaction mechanics, risk mitigation, and use of proceeds for ${data.transactionType}]
+[Write 600-800 words covering:
+- Transaction mechanics for ${data.transactionType}
+- Risk mitigation strategies
+- Use of proceeds
+${!context ? '- Generate realistic transaction structure, security arrangements, and repayment terms' : ''}
+${!context ? '- Include typical guarantee structures and collateral arrangements' : ''}
+]
 
 ### 4. Market Overview
 
-[Write 800-1000 words covering sector context, macroeconomic environment, and competitive landscape]
+[Write 800-1000 words covering:
+${context ? 
+'- Sector context using available data' : 
+'- Nigerian infrastructure sector context (generate current market conditions, growth prospects)'
+}
+- Macroeconomic environment in Nigeria
+- Competitive landscape
+${!context ? '- Generate realistic market size, key players, and growth drivers for the sector' : ''}
+${!context ? '- Include regulatory environment and government initiatives relevant to the sector' : ''}
+]
 
 ### 5. Key Strengths & Value Proposition
 
-[Write 400-500 words highlighting investment rationale and value proposition]
+[Write 400-500 words highlighting:
+${context ? 
+'- Investment rationale based on context data' : 
+'- Investment rationale (generate realistic competitive advantages, market position)'
+}
+- Value proposition for InfraCredit
+${!context ? '- Generate realistic management team strengths, operational capabilities' : ''}
+${!context ? '- Include strategic partnerships and technical expertise' : ''}
+]
 
 ### 6. Critical Areas for Due Diligence
 
-[Write 500-600 words covering technical, financial, legal, and governance due diligence areas]
+[Write 500-600 words covering:
+- Technical due diligence areas
+- Financial due diligence requirements
+- Legal due diligence priorities
+- Governance due diligence focus areas
+${!context ? '- Generate realistic due diligence requirements specific to the sector and transaction type' : ''}
+${!context ? '- Include typical documentation requirements and third-party assessments needed' : ''}
+]
 
 ### 7. Development Impact
 
-[Write 400-500 words covering SDG alignment, economic impact, and social/environmental impact]
+[Write 400-500 words covering:
+- SDG alignment (identify relevant SDGs for the sector)
+- Economic impact projections
+- Social and environmental impact assessment
+${!context ? '- Generate realistic development impact metrics (jobs created, beneficiaries served, etc.)' : ''}
+${!context ? '- Include typical infrastructure development outcomes for Nigeria' : ''}
+]
 
 ### 8. Initial Risk Assessment
 
-[Write 300-400 words covering E&S categorization, policy exceptions, and risk rating]
+[Write 300-400 words covering:
+- E&S categorization rationale
+- Policy exceptions analysis
+- Preliminary risk rating
+${!context ? '- Generate realistic risk assessment based on sector, company profile, and transaction type' : ''}
+${!context ? '- Include typical risk factors and mitigation measures for the sector' : ''}
+]
 
 ### 9. Preliminary KYC Report
 
@@ -76,45 +132,48 @@ IMPORTANT: You MUST use the EXACT section headers and structure shown below. Sta
 | Field | Details |
 |-------|---------|
 | Name of Institution | ${data.companyName} |
-| Date of Incorporation/Establishment | [Generate incorporation details] |
-| Nature of Business | [Generate detailed business description] |
+| Date of Incorporation/Establishment | [${context ? 'Use context data' : 'Generate realistic incorporation date (typically 5-20 years ago)'}] |
+| Nature of Business | [${context ? 'Use context data for detailed business description' : 'Generate comprehensive business description based on company name and sector'}] |
 
 **Governance/Shareholding Table:**
 | Field | Details |
 |-------|---------|
-| Directors | [Generate director names and positions] |
-| Shareholding/Ownership Structure | [Generate share capital structure] |
+| Directors | [${context ? 'Use context data' : 'Generate realistic director names and positions (typically 5-9 directors with relevant industry experience)'}] |
+| Shareholding/Ownership Structure | [${context ? 'Use context data' : 'Generate realistic share capital structure (authorized/issued capital, major shareholders)'}] |
 
 **Flag Report Table:**
 | Field | Status |
 |-------|--------|
-| Politically Exposed Person(s) | [Generate screening results] |
-| Credit History | [Generate credit assessment] |
-| Flags | [Generate screening results] |
+| Politically Exposed Person(s) | [${context ? 'Use context screening results' : 'Generate realistic PEP screening results (typically "None identified" or list specific concerns)'}] |
+| Credit History | [${context ? 'Use context credit assessment' : 'Generate realistic credit assessment (typically "Satisfactory" or "Requires monitoring")'}] |
+| Flags | [${context ? 'Use context screening results' : 'Generate realistic screening results (typically "No material flags" or list specific issues)'}] |
 
 **KYC Documentation Status:**
 | Field | Status |
 |-------|--------|
-| Documents provided for the KYC | [List provided documents] |
+| Documents provided for the KYC | [${context ? 'List from context data' : 'Generate realistic document list (Certificate of Incorporation, Memorandum & Articles, Board Resolutions, Financial Statements, etc.)'}] |
 | Date | [Current date] |
 
 **Commentary/Recommendation:**
-[Generate specific recommendations]
+[${context ? 'Generate specific recommendations based on context' : 'Generate realistic KYC recommendations and any outstanding requirements'}]
 
 ## CRITICAL REQUIREMENTS:
 
 1. You MUST use the EXACT section headers: "### 1.", "### 2.", etc.
 2. You MUST include ALL tables with the EXACT format shown above
-3. You MUST use the context data provided to inform your analysis
+3. ${context ? 'You MUST use the context data provided to inform your analysis' : 'You MUST generate realistic, industry-appropriate data that reflects typical Nigerian infrastructure projects'}
 4. You MUST reference ${data.projectDetails} in the relevant sections
 5. You MUST maintain professional institutional tone throughout
-6. You MUST include specific financial figures and metrics where available
+6. You MUST include specific financial figures and metrics ${context ? 'where available' : '(generate realistic figures based on sector benchmarks)'}
 7. You MUST flag missing information as [TBD - Requires Due Diligence]
+8. ${!context ? 'You MUST ensure all generated data is realistic and consistent with Nigerian infrastructure sector standards' : ''}
+9. ${!context ? 'You MUST use appropriate Nigerian business terminology and regulatory references' : ''}
 
-**Context Data Available**: ${context}
+**Context Data Available**: ${context || 'No context data provided - generating comprehensive analysis based on company name, sector, and transaction type'}
 **Transaction Details**: ${data}
 
 Now generate the NBC Paper following this EXACT template structure. Do not skip any sections or deviate from the format.
+${!context ? '\n\nSince no context data is available, generate realistic, comprehensive content that demonstrates thorough analysis and due diligence appropriate for InfraCredit\'s investment standards. Use industry knowledge to create professional, detailed content that would be suitable for actual investment committee review.' : ''}
 `;
 
 @Injectable()
