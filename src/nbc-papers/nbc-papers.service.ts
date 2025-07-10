@@ -47,15 +47,15 @@ ${context ? 'CONTEXT DATA AVAILABLE: Use the provided context data to inform you
 ### 2. Company & Project Overview
 
 [Write 800-1000 words covering:
-${context ? 
-'- Company background using context data' : 
-'- Company background (generate realistic company history, typically 5-20 years in operation)'
-}
+${context ?
+        '- Company background using context data' :
+        '- Company background (generate realistic company history, typically 5-20 years in operation)'
+    }
 - Project details using ${data.projectDetails}
-${context ? 
-'- Financial structure using context data' : 
-'- Financial structure (generate realistic capital structure, debt-to-equity ratios typical for the sector)'
-}
+${context ?
+        '- Financial structure using context data' :
+        '- Financial structure (generate realistic capital structure, debt-to-equity ratios typical for the sector)'
+    }
 ${!context ? '- Generate realistic project scope, implementation timeline, and key milestones' : ''}
 ${!context ? '- Include typical project costs and financing arrangements for the sector' : ''}
 ]
@@ -73,10 +73,10 @@ ${!context ? '- Include typical guarantee structures and collateral arrangements
 ### 4. Market Overview
 
 [Write 800-1000 words covering:
-${context ? 
-'- Sector context using available data' : 
-'- Nigerian infrastructure sector context (generate current market conditions, growth prospects)'
-}
+${context ?
+        '- Sector context using available data' :
+        '- Nigerian infrastructure sector context (generate current market conditions, growth prospects)'
+    }
 - Macroeconomic environment in Nigeria
 - Competitive landscape
 ${!context ? '- Generate realistic market size, key players, and growth drivers for the sector' : ''}
@@ -86,10 +86,10 @@ ${!context ? '- Include regulatory environment and government initiatives releva
 ### 5. Key Strengths & Value Proposition
 
 [Write 400-500 words highlighting:
-${context ? 
-'- Investment rationale based on context data' : 
-'- Investment rationale (generate realistic competitive advantages, market position)'
-}
+${context ?
+        '- Investment rationale based on context data' :
+        '- Investment rationale (generate realistic competitive advantages, market position)'
+    }
 - Value proposition for InfraCredit
 ${!context ? '- Generate realistic management team strengths, operational capabilities' : ''}
 ${!context ? '- Include strategic partnerships and technical expertise' : ''}
@@ -192,27 +192,25 @@ export class NbcPapersService {
         return collection.find({}).toArray();
     }
 
-    async updateNbcPaper(id: string, updateNbcPaperDto: UpdateNbcPaperDto) {
+    async updateNbcPaper(id: string, updateNbcPaperDto: UpdateNbcPaperDto, user?: any) {
         const collection = await this.mongodbService.connect(this.collectionName);
-        
+
         // Check if the NBC paper exists
         const existingPaper = await collection.findOne({ _id: new ObjectId(id) });
         if (!existingPaper) {
-            throw new Error('NBC Paper not found');
+            throw new Error('NBC paper not found');
         }
 
-        // Prepare update data with updatedAt timestamp
-        const updateData = {
+        const updateData: any = {
             ...updateNbcPaperDto,
             updatedAt: new Date()
         };
 
-        // Remove undefined values
-        Object.keys(updateData).forEach(key => {
-            if (updateData[key] === undefined) {
-                delete updateData[key];
-            }
-        });
+        // Add user tracking if available
+        if (user) {
+            updateData.lastModifiedBy = user.sub;
+            updateData.lastModifiedByEmail = user.email;
+        }
 
         const result = await collection.updateOne(
             { _id: new ObjectId(id) },
@@ -220,35 +218,54 @@ export class NbcPapersService {
         );
 
         if (result.matchedCount === 0) {
-            throw new Error('NBC Paper not found');
+            throw new Error('NBC paper not found');
         }
-        
-        // Return the updated document
-        const updatedPaper = await collection.findOne({ _id: new ObjectId(id) });
-        return {
-            success: true,
-            message: 'NBC Paper updated successfully',
-            updatedPaper
+
+        return { 
+            success: true, 
+            message: 'NBC paper updated successfully',
+            updatedAt: new Date(),
+            lastModifiedBy: user ? user.email : null
         };
     }
 
-    async updateNbcPaperSection(id: string, sectionKey: string, sectionData: { title: string; htmlContent: string }) {
+    async updateNbcPaperSection(id: string, sectionKey: string, sectionData: { title: string; htmlContent: string }, user?: any) {
         const collection = await this.mongodbService.connect(this.collectionName);
-        
+
         // Check if the NBC paper exists
         const existingPaper = await collection.findOne({ _id: new ObjectId(id) });
         if (!existingPaper) {
-            throw new Error('NBC Paper not found');
+            throw new Error('NBC paper not found');
         }
 
-        // Update the specific section
-        const updateData = {
-            [`content.${sectionKey}`]: {
-                title: sectionData.title,
-                htmlContent: sectionData.htmlContent
-            },
+        // Check if the section exists
+        const sectionExists = existingPaper.content.some((section: any) => section.title === this.getSectionTitle(sectionKey));
+        if (!sectionExists) {
+            throw new Error(`Section "${sectionKey}" not found in NBC paper`);
+        }
+
+        // Find and update the specific section
+        const updatedContent = existingPaper.content.map((section: any) => {
+            if (section.title === this.getSectionTitle(sectionKey)) {
+                return {
+                    ...section,
+                    title: sectionData.title,
+                    htmlContent: sectionData.htmlContent
+                };
+            }
+            return section;
+        });
+
+        const updateData: any = {
+            content: updatedContent,
             updatedAt: new Date()
         };
+
+        // Add user tracking if available
+        if (user) {
+            updateData.lastModifiedBy = user.sub;
+            updateData.lastModifiedByEmail = user.email;
+        }
 
         const result = await collection.updateOne(
             { _id: new ObjectId(id) },
@@ -256,44 +273,66 @@ export class NbcPapersService {
         );
 
         if (result.matchedCount === 0) {
-            throw new Error('NBC Paper not found');
+            throw new Error('NBC paper not found');
         }
 
-        // Return the updated document
-        const updatedPaper = await collection.findOne({ _id: new ObjectId(id) });
-        return {
-            success: true,
+        return { 
+            success: true, 
             message: `Section "${sectionKey}" updated successfully`,
-            updatedSection: updateData[`content.${sectionKey}`],
-            updatedPaper
+            updatedAt: new Date(),
+            lastModifiedBy: user ? user.email : null
         };
     }
 
+    private getSectionTitle(sectionKey: string) {
+        switch (sectionKey) {
+            case "summary_table":
+                return "Document Header & Summary Table";
+            case "company_overview":
+                return "Company & Project Overview";
+            case "transaction_overview":
+                return "Transaction Overview";
+            case "market_overview":
+                return "Market Overview";
+            case "key_strengths_value_proposition":
+                return "Key Strengths & Value Proposition";
+            case "critical_areas_due_diligence":
+                return "Critical Areas for Due Diligence";
+            case "development_impact":
+                return "Development Impact";
+            case "initial_risk_assessment":
+                return "Initial Risk Assessment";
+            case "preliminary_kyc_report":
+                return "Preliminary KYC Report";
+            default:
+                return sectionKey;
+        }
+    }
     async getCompanyInfo(nbcPaper: CreateNbcPaperDto) {
         const collection = await this.mongodbService.connect("documents");
         const embeddings = new OpenAIEmbeddings({
             model: "text-embedding-3-small",
             apiKey: process.env.OPENAI_API_KEY,
-        });
+          });
 
         const vectorStore = new MongoDBAtlasVectorSearch(embeddings, {
             collection: collection,
-            indexName: "vector_index",
+            indexName: "vector_index", 
             textKey: "text",
-            embeddingKey: "embedding",
-        });
-
+            embeddingKey: "embedding", 
+          });
+          
         const retrieveTool = tool(
             async ({ companyName }) => {
                 const semanticQuery = `Provide all the information regarding ${companyName}`;
                 console.log("Searching with query:", semanticQuery);
-
+            
                 const results = await vectorStore.similaritySearch(semanticQuery, 40);
-
+            
                 if (!results.length) {
-                    return `No information found for ${companyName}.`;
+                  return `No information found for ${companyName}.`;
                 }
-
+            
                 return results.map(doc => doc.pageContent).join("\n---\n");
             },
             {
@@ -304,15 +343,15 @@ export class NbcPapersService {
                 }),
             },
         );
-
+          
         const tools = [retrieveTool];
         const llm = new ChatOpenAI({
             model: "gpt-4o",
             temperature: 0.1,
             streaming: true,
-        });
+          });
 
-        const agent = createReactAgent({
+          const agent = createReactAgent({
             llm,
             tools,
         });
@@ -333,11 +372,11 @@ export class NbcPapersService {
         return agentResult;
     }
 
-    async createNbcPaper(nbcPaper: CreateNbcPaperDto) {
+    async createNbcPaper(nbcPaper: CreateNbcPaperDto, user?: any) {
         const agentResult = await this.getCompanyInfo(nbcPaper);
         const lastToolMessage = agentResult.messages.at(-2)?.content as string;
-        const docs = lastToolMessage as string;
-
+            const docs = lastToolMessage as string;
+          
         const llm = new ChatOpenAI({
             model: "gpt-4o",
             temperature: 0.1,
@@ -345,52 +384,42 @@ export class NbcPapersService {
         });
 
         const question = PromptTemplate.fromTemplate(prompt(nbcPaper, docs));
-        const ragChain = question.pipe(llm);
-
-        const response = await ragChain.invoke({
-            context: docs,
+            const ragChain = question.pipe(llm);
+          
+            const response = await ragChain.invoke({
+              context: docs,
             data: nbcPaper,
         });
 
         const parsedResponse = await this.extractSectionsToHtml(response.content.toString());
         const nbcPaperCollection = await this.mongodbService.connect(this.collectionName);
-        const getSectionTitle = (section: Section) => {
-            switch (section.title) {
-                case "Document Header & Summary Table":
-                    return "summary_table";
-                case "Company & Project Overview":
-                    return "company_overview";
-                case "Transaction Overview":
-                    return "transaction_overview";
-                case "Market Overview":
-                    return "market_overview";
-                case "Key Strengths & Value Proposition":
-                    return "key_strengths";
-                case "Critical Areas for Due Diligence":
-                    return "critical_areas";
-                case "Development Impact":
-                    return "development_impact";
-                case "Initial Risk Assessment":
-                    return "initial_risk_assessment";
-                case "Preliminary KYC Report":
-                    return "preliminary_kyc_report";
-                default:
-                    return section.title;
-            }
-        };
-        
-        const content: any = {};
+
+        const content: any[] = [];
         parsedResponse.forEach(section => {
-            content[getSectionTitle(section)] = { 
-                title: section.title, 
-                htmlContent: section.htmlContent 
-            };
+            content.push({
+                title: section.title,
+                htmlContent: section.htmlContent
+            });
         });
+
+        // Determine author information
+        let author = "InfraCredit"; // Default author
+        if (user && user.sub) {
+            console.log(user);
+            const userCollection = await this.mongodbService.connect("users");
+            console.log(userCollection);
+            const userData = await userCollection.findOne({ _id: new ObjectId(user.sub) });
+            console.log(userData);
+            if (userData) {
+                author = `${userData.firstName} ${userData.lastName}`;
+            }
+        }
 
         const nbcPaperData = {
             title: `NBC Paper for ${nbcPaper.companyName} - ${nbcPaper.transactionType}`,
             createdAt: new Date(),
-            author: "Chinua Azubuike",
+            author: author,
+            createdBy: user ? user.sub : null, // User ID from JWT
             companyName: nbcPaper.companyName,
             transactionType: nbcPaper.transactionType,
             structuringLeads: nbcPaper.structuringLeads,
@@ -403,12 +432,19 @@ export class NbcPapersService {
         };
 
         const newNbcPaper = await nbcPaperCollection.insertOne(nbcPaperData);
-        return { success: true, newNbcPaper };
+        return {
+            success: true, nbcPaper: {
+                id: newNbcPaper.insertedId,
+                createdAt: nbcPaperData.createdAt,
+                updatedAt: nbcPaperData.updatedAt,
+                author: nbcPaperData.author
+            }
+        };
     }
 
     private async extractSectionsToHtml(markdown: string): Promise<Section[]> {
         const sections: Section[] = [];
-        
+
         // Updated regex to capture both numbered (### 1.) and named (###) sections
         const regex = /###\s*(?:\d+\.\s*)?(.+?)(?=\n###|$)/gs;
 
@@ -463,7 +499,7 @@ export class NbcPapersService {
         return md.render(markdown);
     }
 
-    async regenerateNbcPaper(id: string, section: string, nbcPaper: CreateNbcPaperDto) {
+    async regenerateNbcPaper(id: string, sectionKey: string, nbcPaper: CreateNbcPaperDto, user?: any) {
         // Get the existing NBC Paper
         const nbcPaperCollection = await this.mongodbService.connect(this.collectionName);
         const existingPaper = await nbcPaperCollection.findOne({ _id: new ObjectId(id) });
@@ -480,7 +516,7 @@ export class NbcPapersService {
             temperature: 0.1,
             streaming: true,
         });
-        const sectionPrompt = this.createSectionPrompt(section, nbcPaper, docs);
+        const sectionPrompt = this.createSectionPrompt(sectionKey, nbcPaper, docs);
         const question = PromptTemplate.fromTemplate(sectionPrompt);
         const ragChain = question.pipe(llm);
 
@@ -490,6 +526,8 @@ export class NbcPapersService {
         });
 
         const regeneratedSection = await this.extractSectionsToHtml(response.content.toString());
+    
+        
         const getDescriptiveTitle = (section: string) => {
             switch (section) {
                 case "summary_table":
@@ -504,19 +542,46 @@ export class NbcPapersService {
                     return section;
             }
         };
-        console.log("regeneratedSection", regeneratedSection);
-        const updatedData = { ...existingPaper, content: { ...existingPaper.content, [section]: { title: getDescriptiveTitle(section), htmlContent: regeneratedSection[0].htmlContent } } };
-        console.log("updatedData", updatedData);
+
+        // Update the specific section in the content array
+        const updatedContent = [...existingPaper.content];
+        const sectionIndex = updatedContent.findIndex(s => s.title === getDescriptiveTitle(sectionKey));
+
+        if (sectionIndex !== -1) {
+            updatedContent[sectionIndex] = {
+                title: getDescriptiveTitle(sectionKey),
+                htmlContent: regeneratedSection[0].htmlContent
+            };
+        } else {
+            // If section not found, add it to the array
+            updatedContent.push({
+                title: getDescriptiveTitle(sectionKey),
+                htmlContent: regeneratedSection[0].htmlContent
+            });
+        }
+
+        const updateData: any = {
+            content: updatedContent,
+            updatedAt: new Date()
+        };
+
+        // Add user tracking if available
+        if (user) {
+            updateData.lastModifiedBy = user.sub;
+            updateData.lastModifiedByEmail = user.email;
+        }
+
         const result = await nbcPaperCollection.updateOne(
             { _id: new ObjectId(id) },
-            { $set: updatedData }
+            { $set: updateData }
         );
 
         return {
             success: true,
-            message: `Section "${section}" regenerated successfully`,
-            regeneratedSection,
-            result
+            message: `Section "${sectionKey}" regenerated successfully`,
+            regeneratedSection: regeneratedSection[0],
+            result,
+            lastModifiedBy: user ? user.email : null
         };
     }
 

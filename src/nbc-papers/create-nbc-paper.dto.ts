@@ -1,19 +1,34 @@
+import { IsOptional, IsNotEmpty, IsString, IsArray, IsObject } from "class-validator";
+
 export class CreateNbcPaperDto {
+    @IsString()
+    @IsNotEmpty()
     companyName: string;
-    dealName: string;
+
+    @IsString()
+    @IsNotEmpty()
     transactionType: string;
+
+    @IsArray()
+    @IsNotEmpty()
     structuringLeads: string[];
+
+    @IsArray()
+    @IsNotEmpty()
     sponsors: string[];
+
+    @IsObject()
+    @IsOptional()
     projectDetails: {
         location: string;
         debtNeed: string;
     };
-    marketContext: string;
-    dueDiligenceFlags: string[];
 
-   
-    // portfolioExposure: {
-    //     current: string;
-    //     totalLimit: string;
-    // };
+    @IsString()
+    @IsOptional()
+    marketContext: string;
+
+    @IsArray()
+    @IsOptional()
+    dueDiligenceFlags: string[];
 }
