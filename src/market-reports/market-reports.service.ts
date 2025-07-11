@@ -571,8 +571,12 @@ Generate ONLY the ${sectionTitle} section content for ${countryName} for the yea
 
         // Determine author information
         let author = "InfraCredit"; // Default author
-        if (user && user.email) {
-            author = `${user.firstName} ${user.lastName} (${user.email})`;
+        if (user && user.sub) {
+            const userCollection = await this.mongodbService.connect("users");
+            const userData = await userCollection.findOne({ _id: new ObjectId(user.sub) });
+            if (userData) {
+                author = `${userData.firstName} ${userData.lastName}`;
+            }
         }
 
         const marketReportData = {
