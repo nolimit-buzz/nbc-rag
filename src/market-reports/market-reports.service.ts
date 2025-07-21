@@ -27,10 +27,14 @@ export class MarketReportsService {
     async getMarketReportById(id: string, user?: any) {
         const collection = await this.mongodbService.connect(this.collectionName);
         const existingReport = await collection.findOne({ _id: new ObjectId(id) });
+        console.log("existingReport", existingReport);
         if (!existingReport) {
             throw new Error('Market report not found');
         }
-        if (existingReport.createdBy !== user.sub && !existingReport?.collaborators?.some((collaborator: any) => collaborator.userId === user.sub)) {
+        if (existingReport.createdBy !== user.sub && !existingReport?.collaborators?.some((collaborator: any) => {
+            console.log("collaborator", collaborator, user.sub, collaborator.userId === user.sub);
+            return collaborator.userId === user.sub;
+        })) {
             return {
                 success: false,
                 message: 'User is not the author of the market report',
@@ -79,7 +83,7 @@ export class MarketReportsService {
         const existingCollaborators = existingReport?.collaborators;
         console.log("existingCollaborators", existingCollaborators);
         if (body?.collaborators) {
-            const collaboratorExists = body?.collaborators?.some((collaborator: any) => existingCollaborators?.some((c: any) => c.userId === collaborator.userId));
+            const collaboratorExists = body?.collaborators?.some((collaborator: any) => existingCollaborators?.some((c: any) => c.userId === collaborator.userId && c.role === collaborator.role));
             if (!collaboratorExists) {
                 collaborators = [...(existingCollaborators || []), ...body?.collaborators];
             }
@@ -94,16 +98,18 @@ export class MarketReportsService {
             lastModifiedBy: user.sub,
             lastModifiedByEmail: user.email,
         };
+        await collection.updateOne({ _id: new ObjectId(id) }, { $set: updateData });
 
         const historyCollection = await this.mongodbService.connect("history");
         const history = await historyCollection.findOne({ entityId: id });
         if (!history) {
             throw new Error('History not found');
         }
-        console.log(history);
+        const { _id: historyId, ...rest } = history;
+
         const historyUpdateData = {
             action: "updated_market_report",
-            ...history,
+            ...rest,
             metadata: {
                 ...history.metadata,
                 status: updateData.status,
@@ -113,12 +119,12 @@ export class MarketReportsService {
                 lastModifiedByEmail: user.email,
             }
         }
-        if(updateData.collaborators){
+        if (updateData.collaborators) {
             historyUpdateData["collaborators"] = updateData.collaborators;
         }
-        const { _id: historyId, ...rest } = history;
         await historyCollection.updateOne({ _id: historyId }, {
             $set: {
+                ...rest,
                 ...historyUpdateData,
             }
         });
