@@ -663,7 +663,7 @@ export class MarketReportsService {
 | Gross Official Reserves (bn US$) | [Create realistic reserves figure for ${displayYear}] |
 | Gross Official Reserves (In months of imports) | [Calculate based on imports for ${displayYear}] |
 | UNDP HDI RANKING | [Create realistic HDI ranking for ${displayYear}] |
-| **Sources** | [List credible sources like World Bank, IMF, Central Bank of ${countryName}] |
+| **Sources** | [List credible sources like World Bank, IMF, Central Bank of ${countryName}] and include links to the sources|
 
 ## CRITICAL REQUIREMENTS:
 1. You MUST use the EXACT table structure above.
@@ -965,7 +965,7 @@ Website: [Actual website]
       | Gross Official Reserves (bn US$) | [Create realistic reserves figure for ${displayYear}] |
       | Gross Official Reserves (In months of imports) | [Calculate based on imports for ${displayYear}] |
       | UNDP HDI RANKING | [Create realistic HDI ranking for ${displayYear}] |
-      | **Sources** | [List credible sources like World Bank, IMF, Central Bank of ${countryName}] |
+      | **Sources** | [List credible sources like World Bank, IMF, Central Bank of ${countryName} and include links to the sources] |
       
       ## 1. Overview of Financial System
       
