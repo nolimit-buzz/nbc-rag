@@ -82,10 +82,9 @@ export class MarketReportsService {
             const collaboratorExists = body?.collaborators?.some((collaborator: any) => existingCollaborators?.some((c: any) => c.userId === collaborator.userId));
             if (!collaboratorExists) {
                 collaborators = [...(existingCollaborators || []), ...body?.collaborators];
-            } else {
-                collaborators = existingCollaborators;
             }
         }
+        console.log("collaborators", collaborators);
         console.log("updateMarketReportDto", body);
         const updateData: any = {
             ...dataWithoutId,
@@ -108,10 +107,14 @@ export class MarketReportsService {
             metadata: {
                 ...history.metadata,
                 status: updateData.status,
+                ...updateData,
                 updatedAt: new Date(),
                 lastModifiedBy: user.sub,
                 lastModifiedByEmail: user.email,
             }
+        }
+        if(updateData.collaborators){
+            historyUpdateData["collaborators"] = updateData.collaborators;
         }
         const { _id: historyId, ...rest } = history;
         await historyCollection.updateOne({ _id: historyId }, {

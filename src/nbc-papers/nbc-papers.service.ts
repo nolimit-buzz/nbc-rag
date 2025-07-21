@@ -237,6 +237,7 @@ export class NbcPapersService {
         const historyUpdateData = {
             action: "updated_nbc_paper",
             ...history,
+            collaborators: updateData.collaborators,
             metadata: {
                 ...history.metadata,
                 status: updateData.status,
@@ -244,6 +245,9 @@ export class NbcPapersService {
                 lastModifiedBy: user.sub,
                 lastModifiedByEmail: user.email,
             }
+        }
+        if(updateData.collaborators){
+            historyUpdateData["collaborators"] = updateData.collaborators;
         }
         const {_id:historyId, ...rest} = history;
         await historyCollection.updateOne({ _id: historyId }, {
