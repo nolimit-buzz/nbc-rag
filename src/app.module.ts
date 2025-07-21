@@ -8,9 +8,12 @@ import { MarketReportsModule } from './market-reports/market-reports.module';
 import { UsersModule } from './users/users.module';
 import { MongodbService } from './mongodb/mongodb.service';
 import { MongooseModule } from '@nestjs/mongoose';
+import { HistoryModule } from './history/history.module';
+import { WebsocketsModule } from './websockets/websockets.module';
 
 @Module({
   imports: [
+    WebsocketsModule,
     DocumentsModule, 
     NbcPapersModule, 
     MarketReportsModule, 
@@ -21,6 +24,7 @@ import { MongooseModule } from '@nestjs/mongoose';
     MongooseModule.forRoot(process.env.MONGODB_ATLAS_URI || '', {
       dbName: process.env.MONGODB_ATLAS_DB_NAME || 'infracredit',
     }),
+    HistoryModule,
   ],
   controllers: [AppController],
   providers: [AppService, MongodbService],

@@ -150,8 +150,15 @@ export class UsersService {
     return this.userModel.findById(userId).select('-password -refreshToken');
   }
 
-  async findByEmail(email: string): Promise<UserDocument | null> {
-    return this.userModel.findOne({ email }).select('-password -refreshToken');
+  async findByEmail(email: string): Promise<UserDocument[] | null> {
+    return this.userModel.find({ email }).select('-password -refreshToken -lastLoginAt');
+  }
+
+  async findAll(query?: any): Promise<UserDocument[]> {
+    if(query){
+      return this.userModel.find({$or: [{firstName: {$regex: query, $options: 'i'}}, {lastName: {$regex: query, $options: 'i'}}, {email: {$regex: query, $options: 'i'}}]}).select('-password -refreshToken -lastLoginAt').limit(5).skip(0);
+    }
+    return this.userModel.find({}).select('-password -refreshToken -lastLoginAt').limit(5).skip(0);
   }
 
   private async generateTokens(userId: string, email: string, role: string) {

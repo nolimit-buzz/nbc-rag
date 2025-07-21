@@ -182,8 +182,19 @@ export class NbcPapersService {
 
     private collectionName: string = "nbc_papers";
 
-    async getNbcPaperById(id: string) {
+    async getNbcPaperById(id: string, user?: any) {
         const collection = await this.mongodbService.connect(this.collectionName);
+        const existingPaper = await collection.findOne({ _id: new ObjectId(id) });
+        if (!existingPaper) {
+            throw new Error('NBC paper not found');
+        }
+        if (existingPaper.createdBy !== user.sub && !existingPaper?.collaborators?.some((collaborator: any) => collaborator.userId === user.sub)) {
+            return {
+                success: false,
+                message: 'User is not the author of the market report',
+                status: 403
+            }
+        }
         return collection.findOne({ _id: new ObjectId(id) });
     }
 
@@ -192,7 +203,7 @@ export class NbcPapersService {
         return collection.find({}).toArray();
     }
 
-    async updateNbcPaper(id: string, updateNbcPaperDto: UpdateNbcPaperDto, user?: any) {
+    async updateNbcPaper(id: string, body: any, user?: any) {
         const collection = await this.mongodbService.connect(this.collectionName);
 
         // Check if the NBC paper exists
@@ -200,18 +211,14 @@ export class NbcPapersService {
         if (!existingPaper) {
             throw new Error('NBC paper not found');
         }
-
+        const { _id, ...dataWithoutId } = existingPaper;
         const updateData: any = {
-            ...updateNbcPaperDto,
-            updatedAt: new Date()
+            ...dataWithoutId,
+            ...body,
+            updatedAt: new Date(),
+            lastModifiedBy: user.sub,
+            lastModifiedByEmail: user.email,
         };
-
-        // Add user tracking if available
-        if (user) {
-            updateData.lastModifiedBy = user.sub;
-            updateData.lastModifiedByEmail = user.email;
-        }
-
         const result = await collection.updateOne(
             { _id: new ObjectId(id) },
             { $set: updateData }
@@ -220,9 +227,32 @@ export class NbcPapersService {
         if (result.matchedCount === 0) {
             throw new Error('NBC paper not found');
         }
-
-        return { 
-            success: true, 
+       
+        const historyCollection = await this.mongodbService.connect("history");
+        const history = await historyCollection.findOne({ entityId: id });
+        if(!history){
+            throw new Error('History not found');
+        }
+        console.log(history);
+        const historyUpdateData = {
+            action: "updated_nbc_paper",
+            ...history,
+            metadata: {
+                ...history.metadata,
+                status: updateData.status,
+                updatedAt: new Date(),
+                lastModifiedBy: user.sub,
+                lastModifiedByEmail: user.email,
+            }
+        }
+        const {_id:historyId, ...rest} = history;
+        await historyCollection.updateOne({ _id: historyId }, {
+            $set: {
+                ...historyUpdateData,
+            }
+        });
+        return {
+            success: true,
             message: 'NBC paper updated successfully',
             updatedAt: new Date(),
             lastModifiedBy: user ? user.email : null
@@ -236,6 +266,13 @@ export class NbcPapersService {
         const existingPaper = await collection.findOne({ _id: new ObjectId(id) });
         if (!existingPaper) {
             throw new Error('NBC paper not found');
+        }
+        if (existingPaper.createdBy !== user.sub) {
+            return {
+                success: false,
+                message: 'User is not the author of the NBC paper',
+                status: 403
+            }
         }
 
         // Check if the section exists
@@ -276,8 +313,8 @@ export class NbcPapersService {
             throw new Error('NBC paper not found');
         }
 
-        return { 
-            success: true, 
+        return {
+            success: true,
             message: `Section "${sectionKey}" updated successfully`,
             updatedAt: new Date(),
             lastModifiedBy: user ? user.email : null
@@ -308,31 +345,45 @@ export class NbcPapersService {
                 return sectionKey;
         }
     }
+    async deleteNbcPaper(id: string, user?: any) {
+        const collection = await this.mongodbService.connect(this.collectionName);
+        const existingPaper = await collection.findOne({ _id: new ObjectId(id) });
+        if (!existingPaper) {
+            throw new Error('NBC paper not found');
+        }
+
+        await collection.deleteOne({ _id: new ObjectId(id) });
+
+        const historyCollection = await this.mongodbService.connect("history");
+        await historyCollection.deleteOne({ entityId: id });
+
+
+    }
     async getCompanyInfo(nbcPaper: CreateNbcPaperDto) {
         const collection = await this.mongodbService.connect("documents");
         const embeddings = new OpenAIEmbeddings({
             model: "text-embedding-3-small",
             apiKey: process.env.OPENAI_API_KEY,
-          });
+        });
 
         const vectorStore = new MongoDBAtlasVectorSearch(embeddings, {
             collection: collection,
-            indexName: "vector_index", 
+            indexName: "vector_index",
             textKey: "text",
-            embeddingKey: "embedding", 
-          });
-          
+            embeddingKey: "embedding",
+        });
+
         const retrieveTool = tool(
             async ({ companyName }) => {
                 const semanticQuery = `Provide all the information regarding ${companyName}`;
                 console.log("Searching with query:", semanticQuery);
-            
+
                 const results = await vectorStore.similaritySearch(semanticQuery, 40);
-            
+
                 if (!results.length) {
-                  return `No information found for ${companyName}.`;
+                    return `No information found for ${companyName}.`;
                 }
-            
+
                 return results.map(doc => doc.pageContent).join("\n---\n");
             },
             {
@@ -343,15 +394,15 @@ export class NbcPapersService {
                 }),
             },
         );
-          
+
         const tools = [retrieveTool];
         const llm = new ChatOpenAI({
             model: "gpt-4o",
             temperature: 0.1,
             streaming: true,
-          });
+        });
 
-          const agent = createReactAgent({
+        const agent = createReactAgent({
             llm,
             tools,
         });
@@ -368,15 +419,14 @@ export class NbcPapersService {
                 }
             ],
         });
-        console.log("agentResult", agentResult);
         return agentResult;
     }
 
     async createNbcPaper(nbcPaper: CreateNbcPaperDto, user?: any) {
         const agentResult = await this.getCompanyInfo(nbcPaper);
         const lastToolMessage = agentResult.messages.at(-2)?.content as string;
-            const docs = lastToolMessage as string;
-          
+        const docs = lastToolMessage as string;
+
         const llm = new ChatOpenAI({
             model: "gpt-4o",
             temperature: 0.1,
@@ -384,10 +434,10 @@ export class NbcPapersService {
         });
 
         const question = PromptTemplate.fromTemplate(prompt(nbcPaper, docs));
-            const ragChain = question.pipe(llm);
-          
-            const response = await ragChain.invoke({
-              context: docs,
+        const ragChain = question.pipe(llm);
+
+        const response = await ragChain.invoke({
+            context: docs,
             data: nbcPaper,
         });
 
@@ -401,25 +451,16 @@ export class NbcPapersService {
                 htmlContent: section.htmlContent
             });
         });
+        const userCollection = await this.mongodbService.connect("users");
+        const userData = await userCollection.findOne({ _id: new ObjectId(user.sub) });
+        const author = `${userData?.firstName} ${userData?.lastName} (${userData?.email})`;
 
-        // Determine author information
-        let author = "InfraCredit"; // Default author
-        if (user && user.sub) {
-            console.log(user);
-            const userCollection = await this.mongodbService.connect("users");
-            console.log(userCollection);
-            const userData = await userCollection.findOne({ _id: new ObjectId(user.sub) });
-            console.log(userData);
-            if (userData) {
-                author = `${userData.firstName} ${userData.lastName}`;
-            }
-        }
 
         const nbcPaperData = {
             title: `NBC Paper for ${nbcPaper.companyName} - ${nbcPaper.transactionType}`,
             createdAt: new Date(),
             author: author,
-            createdBy: user ? user.sub : null, // User ID from JWT
+            createdBy: userData?._id.toString(),
             companyName: nbcPaper.companyName,
             transactionType: nbcPaper.transactionType,
             structuringLeads: nbcPaper.structuringLeads,
@@ -432,6 +473,25 @@ export class NbcPapersService {
         };
 
         const newNbcPaper = await nbcPaperCollection.insertOne(nbcPaperData);
+        const historyCollection = await this.mongodbService.connect("history");
+        await historyCollection.insertOne({
+            user: user.sub,
+            action: "created_nbc_paper",
+            entityType: "NbcPaper",
+            entityId: newNbcPaper.insertedId.toString(),
+            createdBy: userData?._id.toString(),
+            metadata: {
+                author: nbcPaperData.author,
+                name: nbcPaperData.title,
+                companyName: nbcPaperData.companyName,
+                transactionType: nbcPaperData.transactionType,
+                status: nbcPaperData.status,
+                title: nbcPaperData.title,
+                createdAt: nbcPaperData.createdAt,
+                updatedAt: nbcPaperData.updatedAt
+            }
+        });
+
         return {
             success: true, nbcPaper: {
                 id: newNbcPaper.insertedId,
@@ -507,6 +567,13 @@ export class NbcPapersService {
         if (!existingPaper) {
             throw new Error('NBC Paper not found');
         }
+        if (existingPaper.createdBy !== user.sub) {
+            return {
+                success: false,
+                message: 'User is not the author of the NBC paper',
+                status: 403
+            }
+        }
         const agentResult = await this.getCompanyInfo(nbcPaper);
         const lastToolMessage = agentResult.messages.at(-2)?.content as string;
         const docs = lastToolMessage as string;
@@ -526,8 +593,8 @@ export class NbcPapersService {
         });
 
         const regeneratedSection = await this.extractSectionsToHtml(response.content.toString());
-    
-        
+
+
         const getDescriptiveTitle = (section: string) => {
             switch (section) {
                 case "summary_table":

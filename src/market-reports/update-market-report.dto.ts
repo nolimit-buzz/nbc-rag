@@ -1,6 +1,6 @@
-import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsArray } from 'class-validator';
 
-export class CreateMarketReportDto {
+export class UpdateMarketReportDto {
     @IsString()
     @IsNotEmpty()
     countryName: string;
@@ -14,7 +14,7 @@ export class CreateMarketReportDto {
     author?: string;
 
     @IsOptional()
-    @IsString()
+    @IsArray()
     collaborators?: string[];
 
     @IsOptional()

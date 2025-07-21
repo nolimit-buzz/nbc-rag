@@ -1,4 +1,4 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards, Req, Get, NotFoundException } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards, Req, Get, NotFoundException, Query, Param } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { RegisterUserDto } from './dto/register-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
@@ -32,6 +32,18 @@ export class UsersController {
   async logout(@Req() req: any): Promise<{ message: string }> {
     await this.usersService.logout(req.user.sub);
     return { message: 'Logged out successfully' };
+  }
+
+  @Get('all')
+  @UseGuards(JwtAuthGuard)
+  async getAllUsers(@Req() req: any, @Query('query') query: string) {
+    return this.usersService.findAll(query);
+  }
+
+  @Get('by-email/:email')
+  @UseGuards(JwtAuthGuard)
+  async getUserByEmail(@Param('email') email: string) {
+    return this.usersService.findByEmail(email);
   }
 
   @Get('profile')

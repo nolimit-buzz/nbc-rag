@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsDate } from 'class-validator';
+import { IsOptional, IsString, IsDate, IsArray } from 'class-validator';
 
 export class UpdateNbcPaperDto {
     @IsOptional()
@@ -43,4 +43,12 @@ export class UpdateNbcPaperDto {
     @IsOptional()
     @IsDate()
     updatedAt?: Date;
+
+    @IsOptional()
+    @IsString()
+    lastModifiedBy?: string;
+
+    @IsOptional()
+    @IsArray()
+    collaborators?: string[];
 } 

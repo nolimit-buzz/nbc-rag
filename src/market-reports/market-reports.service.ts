@@ -6,6 +6,7 @@ import { PromptTemplate } from '@langchain/core/prompts';
 import * as MarkdownIt from 'markdown-it';
 import { ObjectId } from 'mongodb';
 import { UpdateMarketReportSectionDto } from './update-market-report-section.dto';
+import { UpdateMarketReportDto } from './update-market-report.dto';
 
 export interface MarketReportSection {
     title: string;
@@ -23,9 +24,23 @@ export class MarketReportsService {
 
     private collectionName: string = "market_reports";
 
-    async getMarketReportById(id: string) {
+    async getMarketReportById(id: string, user?: any) {
         const collection = await this.mongodbService.connect(this.collectionName);
-        return collection.findOne({ _id: new ObjectId(id) });
+        const existingReport = await collection.findOne({ _id: new ObjectId(id) });
+        if (!existingReport) {
+            throw new Error('Market report not found');
+        }
+        if (existingReport.createdBy !== user.sub && !existingReport?.collaborators?.some((collaborator: any) => collaborator.userId === user.sub)) {
+            return {
+                success: false,
+                message: 'User is not the author of the market report',
+                status: 403
+            }
+        }
+        return {
+            success: true,
+            ...existingReport
+        };
     }
 
     async getMarketReports() {
@@ -41,6 +56,75 @@ export class MarketReportsService {
     async getMarketReportsByCountry(countryName: string) {
         const collection = await this.mongodbService.connect(this.collectionName);
         return collection.find({ countryName: { $regex: new RegExp(countryName, 'i') } }).toArray();
+    }
+
+    async updateMarketReport(id: string, body: any, user?: any) {
+        const collection = await this.mongodbService.connect(this.collectionName);
+        const existingReport = await collection.findOne({ _id: new ObjectId(id) });
+
+        const isCollaborator = existingReport?.collaborators?.some((collaborator: any) => collaborator.userId === user.sub && collaborator.role === "owner");
+        if (user.sub !== existingReport?.createdBy && !isCollaborator) {
+            return {
+                success: false,
+                message: 'User is not the author or collaborator of the market report',
+                status: 403
+            }
+        }
+        if (!existingReport) {
+            throw new Error('Market report not found');
+        }
+
+        const { _id, ...dataWithoutId } = existingReport;
+        let collaborators: any[] = [];
+        const existingCollaborators = existingReport?.collaborators;
+        if (body?.collaborators) {
+            const collaboratorExists = body?.collaborators?.some((collaborator: any) => existingCollaborators?.some((c: any) => c.userId === collaborator.userId));
+            if (!collaboratorExists) {
+                collaborators = [...existingCollaborators, ...body?.collaborators];
+            } else {
+                collaborators = existingCollaborators;
+            }
+        }
+        console.log("updateMarketReportDto", body);
+        const updateData: any = {
+            ...dataWithoutId,
+            ...body,
+            collaborators: collaborators,
+            updatedAt: new Date(),
+            lastModifiedBy: user.sub,
+            lastModifiedByEmail: user.email,
+        };
+
+        const historyCollection = await this.mongodbService.connect("history");
+        const history = await historyCollection.findOne({ entityId: id });
+        if (!history) {
+            throw new Error('History not found');
+        }
+        console.log(history);
+        const historyUpdateData = {
+            action: "updated_market_report",
+            ...history,
+            metadata: {
+                ...history.metadata,
+                status: updateData.status,
+                updatedAt: new Date(),
+                lastModifiedBy: user.sub,
+                lastModifiedByEmail: user.email,
+            }
+        }
+        const { _id: historyId, ...rest } = history;
+        await historyCollection.updateOne({ _id: historyId }, {
+            $set: {
+                ...historyUpdateData,
+            }
+        });
+        return {
+            success: true,
+            message: 'Market report updated successfully',
+            updatedAt: new Date(),
+            lastModifiedBy: user ? user.email : null
+        };
+
     }
 
     async updateMarketReportSection(id: string, sectionKey: string, sectionData: { title: string; htmlContent?: string; subsections?: { title: string; htmlContent: string }[] }, user?: any) {
@@ -74,7 +158,8 @@ export class MarketReportsService {
             return section;
         });
 
-        const updateData: any = { 
+
+        const updateData: any = {
             content: updatedContent,
             updatedAt: new Date()
         };
@@ -89,13 +174,25 @@ export class MarketReportsService {
             { _id: new ObjectId(id) },
             { $set: updateData }
         );
-
+        const historyCollection = await this.mongodbService.connect("history");
+        await historyCollection.insertOne({
+            user: user ? user.sub : null,
+            action: "updated_market_report",
+            entityType: "MarketReport",
+            entityId: updateData.id,
+            metadata: {
+                author: existingReport.authorName,
+                name: updateData.title,
+                countryName: updateData.countryName,
+                year: updateData.year
+            }
+        });
         if (result.matchedCount === 0) {
             throw new Error('Market report not found');
         }
 
-        return { 
-            success: true, 
+        return {
+            success: true,
             message: `Section "${this.getSectionTitle(sectionKey)}" updated successfully`,
             updatedAt: new Date(),
             lastModifiedBy: user ? user.email : null
@@ -127,7 +224,7 @@ export class MarketReportsService {
         }
     }
 
-    async updateMarketReportSubsection(id: string, sectionKey: string, subsectionKey: string, subsectionData: { title: string; htmlContent: string }) {
+    async updateMarketReportSubsection(id: string, sectionKey: string, subsectionKey: string, subsectionData: { title: string; htmlContent: string }, user?: any) {
         const collection = await this.mongodbService.connect(this.collectionName);
 
         // Check if the market report exists
@@ -135,7 +232,12 @@ export class MarketReportsService {
         if (!existingReport) {
             throw new Error('Market report not found');
         }
-
+        if ((user && user.sub) !== existingReport.author) {
+            return {
+                success: false,
+                message: 'User is not the author of the market report',
+            }
+        }
         // Check if the section exists
         const section = existingReport.content.find((section: any) => {
             console.log(section.title, this.getSectionTitle(sectionKey), sectionKey);
@@ -193,7 +295,19 @@ export class MarketReportsService {
         if (result.matchedCount === 0) {
             throw new Error('Market report not found');
         }
-
+        const historyCollection = await this.mongodbService.connect("history");
+        await historyCollection.insertOne({
+            user: user ? user.sub : null,
+            action: "updated_market_report_subsection",
+            entityType: "MarketReport",
+            entityId: existingReport.id,
+            metadata: {
+                authorName: existingReport.authorName,
+                name: existingReport.title,
+                countryName: existingReport.countryName,
+                year: existingReport.year
+            }
+        });
         return {
             success: true,
             message: `Subsection "${this.getSubsectionTitle(subsectionKey)}" in section "${sectionKey}" updated successfully`,
@@ -245,13 +359,19 @@ export class MarketReportsService {
         };
     }
 
-    async removeSubsectionFromSection(id: string, sectionKey: string, subsectionTitle: string) {
+    async removeSubsectionFromSection(id: string, sectionKey: string, subsectionTitle: string, user?: any) {
         const collection = await this.mongodbService.connect(this.collectionName);
 
         // Check if the market report exists
         const existingReport = await collection.findOne({ _id: new ObjectId(id) });
         if (!existingReport) {
             throw new Error('Market report not found');
+        }
+        if (existingReport.createdBy !== user.sub) {
+            return {
+                success: false,
+                message: 'User is not the author of the market report',
+            }
         }
 
         // Find the section and remove the specific subsection
@@ -329,7 +449,7 @@ export class MarketReportsService {
     private async regenerateSpecificSubsection(id: string, sectionKey: string, subsectionKey: string, existingReport: any, llm: ChatOpenAI, marketPaper: UpdateMarketReportSectionDto, user?: any) {
         const sectionTitle = this.getSectionTitle(sectionKey);
         const subsectionTitle = this.getSubsectionTitle(subsectionKey);
-        
+
         const prompt = this.generateSubsectionPrompt(sectionKey, subsectionKey, existingReport.countryName, existingReport.year);
         const question = PromptTemplate.fromTemplate(prompt);
         const chain = question.pipe(llm);
@@ -342,10 +462,10 @@ export class MarketReportsService {
 
         const parsedResponse = await this.extractSectionsToHtml(response.content.toString());
         console.log('Parsed subsection response:', parsedResponse);
-        
+
         // Find the regenerated subsection content
-        const regeneratedSubsection = parsedResponse.find(section => 
-            section.title === subsectionTitle || 
+        const regeneratedSubsection = parsedResponse.find(section =>
+            section.title === subsectionTitle ||
             section.title.toLowerCase().includes(subsectionKey.toLowerCase())
         );
 
@@ -478,7 +598,7 @@ export class MarketReportsService {
         });
 
         const parsedResponse = await this.extractSectionsToHtml(response.content.toString());
-        
+
         const content: any[] = [];
         parsedResponse.forEach(section => {
             content.push({
@@ -491,12 +611,12 @@ export class MarketReportsService {
         const collection = await this.mongodbService.connect(this.collectionName);
         const result = await collection.updateOne(
             { _id: new ObjectId(id) },
-            { 
-                $set: { 
+            {
+                $set: {
                     content,
                     htmlContent: response.content.toString(),
                     updatedAt: new Date()
-                } 
+                }
             }
         );
 
@@ -504,8 +624,8 @@ export class MarketReportsService {
             throw new Error('Market report not found');
         }
 
-        return { 
-            success: true, 
+        return {
+            success: true,
             message: `Entire market report regenerated successfully`,
             updatedAt: new Date()
         };
@@ -540,8 +660,9 @@ Generate ONLY the ${sectionTitle} section content for ${countryName} for the yea
     }
 
     async createMarketReport(createMarketReportDto: CreateMarketReportDto, user?: any) {
+
         const collection = await this.mongodbService.connect(this.collectionName);
-        
+
         const llm = new ChatOpenAI({
             model: "gpt-4o",
             temperature: 0.1,
@@ -559,7 +680,7 @@ Generate ONLY the ${sectionTitle} section content for ${countryName} for the yea
         });
 
         const parsedResponse = await this.extractSectionsToHtml(response.content.toString());
-        
+
         const content: any[] = [];
         parsedResponse.forEach(section => {
             content.push({
@@ -569,15 +690,9 @@ Generate ONLY the ${sectionTitle} section content for ${countryName} for the yea
             });
         });
 
-        // Determine author information
-        let author = "InfraCredit"; // Default author
-        if (user && user.sub) {
-            const userCollection = await this.mongodbService.connect("users");
-            const userData = await userCollection.findOne({ _id: new ObjectId(user.sub) });
-            if (userData) {
-                author = `${userData.firstName} ${userData.lastName}`;
-            }
-        }
+        const usersCollection = await this.mongodbService.connect("users");
+        const userData = await usersCollection.findOne({ _id: new ObjectId(user.sub) });
+        const author = `${userData?.firstName} ${userData?.lastName} (${userData?.email})`;
 
         const marketReportData = {
             title: `African Fixed Income Market Guide - ${createMarketReportDto.countryName} (${year})`,
@@ -585,7 +700,7 @@ Generate ONLY the ${sectionTitle} section content for ${countryName} for the yea
             year: year,
             description: createMarketReportDto.description || `Market report for ${createMarketReportDto.countryName} - ${year}`,
             author: author,
-            createdBy: user ? user.sub : null, // User ID from JWT
+            createdBy: userData?._id.toString(),
             content,
             status: "draft",
             htmlContent: response.content.toString(),
@@ -594,8 +709,27 @@ Generate ONLY the ${sectionTitle} section content for ${countryName} for the yea
         };
 
         const newMarketReport = await collection.insertOne(marketReportData);
-        return { 
-            success: true, 
+
+        const activityCollection = await this.mongodbService.connect("history");
+        await activityCollection.insertOne({
+            user: user ? user.sub : null,
+            action: "created_market_report",
+            entityType: "MarketReport",
+            entityId: newMarketReport.insertedId.toString(),
+            createdBy: userData?._id.toString(),
+            metadata: {
+                author: marketReportData.author,
+                name: marketReportData.title,
+                countryName: marketReportData.countryName,
+                year: marketReportData.year,
+                title: marketReportData.title,
+                status: marketReportData.status,
+                createdAt: marketReportData.createdAt,
+                updatedAt: marketReportData.updatedAt
+            }
+        });
+        return {
+            success: true,
             marketReport: {
                 id: newMarketReport.insertedId,
                 createdAt: marketReportData.createdAt,
@@ -604,7 +738,25 @@ Generate ONLY the ${sectionTitle} section content for ${countryName} for the yea
             }
         };
     }
+    async deleteMarketReport(id: string, user?: any) {
+        const collection = await this.mongodbService.connect(this.collectionName);
+        const existingPaper = await collection.findOne({ _id: new ObjectId(id) });
+        if (!existingPaper) {
+            throw new Error('Market report not found');
+        }
+        await collection.deleteOne({ _id: new ObjectId(id) });
 
+        const historyCollection = await this.mongodbService.connect("history");
+        await historyCollection.deleteOne({ entityId: id });
+
+        if (existingPaper.createdBy !== user.sub) {
+            return {
+                success: false,
+                message: 'User is not the author of the market report',
+                status: 403
+            }
+        }
+    }
     private generateMarketReportPrompt(countryName: string, year: number): string {
         const displayYear = year || new Date().getFullYear();
         return `You are an expert financial analyst specializing in African fixed income markets. Create a comprehensive market report for ${countryName} for the year ${displayYear} following the EXACT template structure below.
@@ -779,16 +931,12 @@ Generate ONLY the ${sectionTitle} section content for ${countryName} for the yea
         return sections;
     }
 
-
-
     private removeNumbering(title: string): string {
         return title
             .replace(/^#+\s*/, '')                            // Remove leading # symbols
             .replace(/^\d+(\.\d+)*\.?\s*/, '')                // Remove any numbering patterns with optional dots & spaces
             .trim();
     }
-
-
 
     private async markdownToHtml(markdown: string): Promise<string> {
         const md = new MarkdownIt();
@@ -833,7 +981,7 @@ Generate ONLY the ${sectionTitle} section content for ${countryName} for the yea
             case "derivatives":
                 return "Derivatives";
             case "foreign_participation":
-                return "Foreign Participation"; 
+                return "Foreign Participation";
             case "clearing_and_settlement":
                 return "Clearing and Settlement";
             case "investment_taxation":
@@ -859,7 +1007,7 @@ Generate ONLY the ${sectionTitle} section content for ${countryName} for the yea
         const displayYear = year || new Date().getFullYear();
         const sectionTitle = this.getSectionTitle(sectionKey);
         const subsectionTitle = this.getSubsectionTitle(subsectionKey);
-        
+
         return `You are an expert financial analyst specializing in African fixed income markets. Regenerate ONLY the "${subsectionTitle}" subsection within the "${sectionTitle}" section for ${countryName} for the year ${displayYear}.
 
 Focus specifically on the ${subsectionTitle} subsection and provide comprehensive, up-to-date information that would be relevant for ${displayYear}.
