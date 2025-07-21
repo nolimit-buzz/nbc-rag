@@ -77,10 +77,11 @@ export class MarketReportsService {
         const { _id, ...dataWithoutId } = existingReport;
         let collaborators: any[] = [];
         const existingCollaborators = existingReport?.collaborators;
+        console.log("existingCollaborators", existingCollaborators);
         if (body?.collaborators) {
             const collaboratorExists = body?.collaborators?.some((collaborator: any) => existingCollaborators?.some((c: any) => c.userId === collaborator.userId));
             if (!collaboratorExists) {
-                collaborators = [...existingCollaborators, ...body?.collaborators];
+                collaborators = [...(existingCollaborators || []), ...body?.collaborators];
             } else {
                 collaborators = existingCollaborators;
             }
