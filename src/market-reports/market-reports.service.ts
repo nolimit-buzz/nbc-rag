@@ -31,10 +31,9 @@ export class MarketReportsService {
         if (!existingReport) {
             throw new Error('Market report not found');
         }
-        if (existingReport.createdBy !== user.sub && !existingReport?.collaborators?.some((collaborator: any) => {
-            console.log("collaborator", collaborator, user.sub, collaborator.userId === user.sub);
-            return collaborator.userId === user.sub;
-        })) {
+        console.log(existingReport.collaborators);
+        console.log("user", user.sub, existingReport.createdBy, existingReport?.collaborators?.some((collaborator: any) => collaborator.userId === user.sub));
+        if (existingReport.createdBy !== user.sub && !existingReport?.collaborators?.some((collaborator: any) => collaborator.userId === user.sub)) {
             return {
                 success: false,
                 message: 'User is not the author of the market report',
@@ -84,6 +83,7 @@ export class MarketReportsService {
         console.log("existingCollaborators", existingCollaborators);
         if (body?.collaborators) {
             const collaboratorExists = body?.collaborators?.some((collaborator: any) => existingCollaborators?.some((c: any) => c.userId === collaborator.userId && c.role === collaborator.role));
+            console.log("collaboratorExists", collaboratorExists);
             if (!collaboratorExists) {
                 collaborators = [...(existingCollaborators || []), ...body?.collaborators];
             }
@@ -98,7 +98,8 @@ export class MarketReportsService {
             lastModifiedBy: user.sub,
             lastModifiedByEmail: user.email,
         };
-        await collection.updateOne({ _id: new ObjectId(id) }, { $set: updateData });
+        const result = await collection.updateOne({ _id: new ObjectId(id) }, { $set: updateData });
+        console.log("result", result);
 
         const historyCollection = await this.mongodbService.connect("history");
         const history = await historyCollection.findOne({ entityId: id });
