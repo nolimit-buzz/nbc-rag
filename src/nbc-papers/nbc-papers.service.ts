@@ -667,7 +667,6 @@ You are regenerating Section 1 (Document Header & Summary Table) of an NBC Paper
 
 ### 1. Document Header & Summary Table
 
-Project Summary Table:
 | Field | Details |
 |-------|---------|
 | Deal Name | [Create professional deal name based on ${data.companyName} and project scope] |

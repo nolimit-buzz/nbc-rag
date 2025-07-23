@@ -1045,9 +1045,10 @@ Website: [Actual website]
       ## CRITICAL REQUIREMENTS:
       
       1. You MUST use the EXACT section headers and structure shown above.
-      2. You MUST create realistic, accurate data for ${countryName} for the year ${displayYear}.
-      3. You MUST use actual official languages, currencies, and institutional names for ${countryName}.
-      4. You MUST maintain a professional financial analysis tone throughout.
+      2. You MUST not include any additional section or title against the structure above.
+      3. You MUST create realistic, accurate data for ${countryName} for the year ${displayYear}.
+      4. You MUST use actual official languages, currencies, and institutional names for ${countryName}.
+      5. You MUST maintain a professional financial analysis tone throughout.
       5. You MUST include specific financial figures and market metrics for ${displayYear}.
       6. You MUST reference credible sources for data.
       7. You MUST ensure all information is current and relevant to ${countryName} in ${displayYear}.
