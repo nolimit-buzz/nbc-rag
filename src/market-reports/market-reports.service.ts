@@ -216,7 +216,7 @@ export class MarketReportsService {
                 return "Summary Statistics";
             case "snapshot":
                 return "Snapshot";
-            case "overview_of_financial_system":
+            case "overview_financial_system":
                 return "Overview of Financial System";
             case "fixed_income_markets":
                 return "Fixed Income Markets";
@@ -224,9 +224,9 @@ export class MarketReportsService {
                 return "Foreign Exchange";
             case "derivatives":
                 return "Derivatives";
-            case "foreign_participation":
+            case "participation_foreign_investors_issuers":
                 return "Participation of Foreign Investors and Issuers";
-            case "clearing_and_settlement":
+            case "clearing_settlement":
                 return "Clearing and Settlement";
             case "investment_taxation":
                 return "Investment Taxation";
@@ -692,14 +692,8 @@ export class MarketReportsService {
 
 Explain the overview of the financial system in ${countryName} as of ${displayYear}, including the banking system, ownership structures, and regulatory framework.
 
-### 1.1 Bank and Non-Bank Financial Sector
-Describe the banking system and ownership structure, the roles and significance of non-bank financial institutions, and the insurance market in ${countryName} as of ${displayYear}.
-
-### 1.2 Capital Market
-Detail the stock exchange and capital market infrastructure, discuss listings and modernization efforts, and describe major brokerage firms and their services in ${countryName} as of ${displayYear}.
-
 ## CRITICAL REQUIREMENTS:
-1. You MUST use the EXACT section and subsection headers and structure above.
+1. You MUST use the EXACT section headers and structure above.
 2. You MUST create realistic, accurate data for ${countryName} for the year ${displayYear}.
 3. You MUST use actual official languages, currencies, and institutional names for ${countryName}.
 4. You MUST maintain a professional financial analysis tone.
@@ -712,19 +706,10 @@ Detail the stock exchange and capital market infrastructure, discuss listings an
 
 ## Fixed Income Markets
 
-Present a narrative overview of the fixed income market in ${countryName} as of ${displayYear}.
-
-### 2.1 Government Securities
-Describe the Treasury bills and bonds maturities available, explain the auction process and primary market operations, and summarize the outstanding debt and ownership distribution as of ${displayYear}.
-
-### 2.2 Non-Central Government Issuance
-Describe the issuance of corporate bonds, commercial paper, certificates of deposit, and their proportion relative to government debt in ${displayYear}.
-
-### 2.3 Secondary Market
-Detail the liquidity and trading volume in the fixed income market, summarize the repo market and interbank activities, and describe the yield curve and market dynamics in ${displayYear}.
+Explain the fixed income market in ${countryName} as of ${displayYear}.
 
 ## CRITICAL REQUIREMENTS:
-1. You MUST use the EXACT section and subsection headers and structure above.
+1. You MUST use the EXACT section headers and structure above.
 2. You MUST create realistic, accurate data for ${countryName} for the year ${displayYear}.
 3. You MUST use actual official languages, currencies, and institutional names for ${countryName}.
 4. You MUST maintain a professional financial analysis tone.
@@ -807,7 +792,7 @@ Explain the taxation of interest, dividends, royalties, and foreign income in ${
 
 ## CRITICAL REQUIREMENTS:
 1. You MUST use the EXACT section header and structure above.
-2. You MUST create realistic, accurate data for ${countryName} for the year ${displayYear}.
+2. You MUST create realistic, accurate data for ${countryName} for the year ${displayYear} or the most recent year available.
 3. You MUST use actual official languages, currencies, and institutional names for ${countryName}.
 4. You MUST maintain a professional financial analysis tone.
 5. You MUST reference credible sources for data.
@@ -1184,7 +1169,7 @@ Website: [Actual website]
                 return "Investment Taxation";
             case "key_contacts":
                 return "Key Contacts";
-            case "bank_and_non_bank_financial_sector":
+            case "bank_non_bank_financial_sector":
                 return "Bank and Non-Bank Financial Sector";
             case "capital_market":
                 return "Capital Market";

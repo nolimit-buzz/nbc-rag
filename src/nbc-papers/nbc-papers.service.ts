@@ -345,6 +345,10 @@ export class NbcPapersService {
                 return "Initial Risk Assessment";
             case "preliminary_kyc_report":
                 return "Preliminary KYC Report";
+            case "final_kyc_report":
+                return "Final KYC Report";
+            case "final_kyc_report_table":
+                return "Final KYC Report Table";
             default:
                 return sectionKey;
         }
@@ -773,7 +777,7 @@ Use the context data to inform your analysis. Generate ONLY this section.
 **Transaction Details**: ${data}
 `,
 
-            "key_strengths": `
+            "key_strengths_value_proposition": `
 You are regenerating Section 5 (Key Strengths & Value Proposition) of an NBC Paper. Write 400-500 words highlighting:
 
 ### 5. Key Strengths & Value Proposition
@@ -791,7 +795,7 @@ Use the context data to inform your analysis. Generate ONLY this section.
 **Transaction Details**: ${data}
 `,
 
-            "critical_areas": `
+            "critical_areas_due_diligence": `
 You are regenerating Section 6 (Critical Areas for Due Diligence) of an NBC Paper. Write 500-600 words covering:
 
 ### 6. Critical Areas for Due Diligence
