@@ -170,9 +170,13 @@ export class MarketReportsService {
         });
 
 
+        const { _id, ...dataWithoutId } = existingReport;
         const updateData: any = {
+            ...dataWithoutId,
             content: updatedContent,
-            updatedAt: new Date()
+            updatedAt: new Date(),
+            lastModifiedBy: user.sub,
+            lastModifiedByEmail: user.email,
         };
 
         // Add user tracking if available
@@ -186,18 +190,18 @@ export class MarketReportsService {
             { $set: updateData }
         );
         const historyCollection = await this.mongodbService.connect("history");
-        await historyCollection.insertOne({
+        const history = await historyCollection.findOne({ entityId: id });
+        if (!history) {
+            throw new Error('History not found');
+        }
+        await historyCollection.updateOne({_id: history._id}, {$set: {
+            ...history,
             user: user ? user.sub : null,
-            action: "updated_market_report",
+            action: "updated_market_report_section",
             entityType: "MarketReport",
             entityId: updateData.id,
-            metadata: {
-                author: existingReport.authorName,
-                name: updateData.title,
-                countryName: updateData.countryName,
-                year: updateData.year
-            }
-        });
+            
+        }});
         if (result.matchedCount === 0) {
             throw new Error('Market report not found');
         }
@@ -309,18 +313,18 @@ export class MarketReportsService {
             throw new Error('Market report not found');
         }
         const historyCollection = await this.mongodbService.connect("history");
-        await historyCollection.insertOne({
+        const history = await historyCollection.findOne({ entityId: id });
+        if (!history) {
+            throw new Error('History not found');
+        }
+        await historyCollection.updateOne({_id: history._id}, {$set: {
+            ...history,
             user: user ? user.sub : null,
             action: "updated_market_report_subsection",
             entityType: "MarketReport",
-            entityId: existingReport.id,
-            metadata: {
-                authorName: existingReport.authorName,
-                name: existingReport.title,
-                countryName: existingReport.countryName,
-                year: existingReport.year
-            }
-        });
+            entityId: existingReport._id.toString(),
+            
+        }});
         return {
             success: true,
             message: `Subsection "${this.getSubsectionTitle(subsectionKey)}" in section "${sectionKey}" updated successfully`,
