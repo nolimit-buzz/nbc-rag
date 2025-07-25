@@ -26,7 +26,7 @@ export class HistoryService {
             query["metadata.status"] = { $regex: `^${status}$`, $options: 'i' };
         }
         const total = await collection.countDocuments(query);
-        const results = await collection.find(query).skip(skip).limit(limit).toArray();
+        const results = await collection.find(query).skip(skip).limit(limit).sort({ createdAt: 1 }).toArray();
         return {
             total,
             skip,

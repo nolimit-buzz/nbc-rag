@@ -31,8 +31,9 @@ export class MarketReportsService {
         if (!existingReport) {
             throw new Error('Market report not found');
         }
-        console.log(existingReport.collaborators);
-        console.log("user", user.sub, existingReport.createdBy, existingReport?.collaborators?.some((collaborator: any) => collaborator.userId === user.sub));
+        console.log(id)
+        // console.log(existingReport.collaborators);
+        // console.log("user", user.sub, existingReport.createdBy, existingReport?.collaborators?.some((collaborator: any) => collaborator.userId === user.sub));
         if (existingReport.createdBy !== user.sub && !existingReport?.collaborators?.some((collaborator: any) => collaborator.userId === user.sub)) {
             return {
                 success: false,
