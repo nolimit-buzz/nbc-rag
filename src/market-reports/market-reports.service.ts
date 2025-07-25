@@ -79,14 +79,19 @@ export class MarketReportsService {
 
         const { _id, ...dataWithoutId } = existingReport;
         let collaborators: any[] = [];
-        const existingCollaborators = existingReport?.collaborators;
+        const existingCollaborators = existingReport?.collaborators || [];
         console.log("existingCollaborators", existingCollaborators);
         if (body?.collaborators) {
-            const collaboratorExists = body?.collaborators?.some((collaborator: any) => existingCollaborators?.some((c: any) => c.userId === collaborator.userId && c.role === collaborator.role));
-            console.log("collaboratorExists", collaboratorExists);
-            if (!collaboratorExists) {
-                collaborators = [...(existingCollaborators || []), ...body?.collaborators];
-            }
+            // Filter out existing collaborators from the new ones
+            const newCollaborators = body.collaborators.filter((newCollaborator: any) => 
+                !existingCollaborators.some((existing: any) => 
+                    existing.userId === newCollaborator.userId && existing.role === newCollaborator.role
+                )
+            );
+            console.log("newCollaborators", newCollaborators);
+            collaborators = [...existingCollaborators, ...newCollaborators];
+        } else {
+            collaborators = existingCollaborators;
         }
         console.log("collaborators", collaborators);
         console.log("updateMarketReportDto", body);
@@ -98,6 +103,7 @@ export class MarketReportsService {
             lastModifiedBy: user.sub,
             lastModifiedByEmail: user.email,
         };
+        console.log("collaborators", collaborators);
         const result = await collection.updateOne({ _id: new ObjectId(id) }, { $set: updateData });
         console.log("result", result);
 
@@ -108,21 +114,34 @@ export class MarketReportsService {
         }
         const { _id: historyId, ...rest } = history;
 
-        const historyUpdateData = {
+
+        console.log("updateData-History", {
             action: "updated_market_report",
             ...rest,
+            collaborators: collaborators || [],
             metadata: {
                 ...history.metadata,
                 status: updateData.status,
-                ...updateData,
+                updatedAt: new Date(),
+                lastModifiedBy: user.sub,
+                lastModifiedByEmail: user.email,
+            }
+        });
+        const historyUpdateData = {
+            action: "updated_market_report",
+            ...rest,
+            collaborators: collaborators || [],
+            metadata: {
+                ...history.metadata,
+                status: updateData.status,
                 updatedAt: new Date(),
                 lastModifiedBy: user.sub,
                 lastModifiedByEmail: user.email,
             }
         }
-        if (updateData.collaborators) {
-            historyUpdateData["collaborators"] = updateData.collaborators;
-        }
+        // if (updateData.collaborators) {
+        //     historyUpdateData["collaborators"] = updateData.collaborators;
+        // }
         await historyCollection.updateOne({ _id: historyId }, {
             $set: {
                 ...rest,
@@ -194,14 +213,16 @@ export class MarketReportsService {
         if (!history) {
             throw new Error('History not found');
         }
-        await historyCollection.updateOne({_id: history._id}, {$set: {
-            ...history,
-            user: user ? user.sub : null,
-            action: "updated_market_report_section",
-            entityType: "MarketReport",
-            entityId: updateData.id,
-            
-        }});
+        await historyCollection.updateOne({ _id: history._id }, {
+            $set: {
+                ...history,
+                user: user ? user.sub : null,
+                action: "updated_market_report_section",
+                entityType: "MarketReport",
+                entityId: updateData.id,
+
+            }
+        });
         if (result.matchedCount === 0) {
             throw new Error('Market report not found');
         }
@@ -317,14 +338,16 @@ export class MarketReportsService {
         if (!history) {
             throw new Error('History not found');
         }
-        await historyCollection.updateOne({_id: history._id}, {$set: {
-            ...history,
-            user: user ? user.sub : null,
-            action: "updated_market_report_subsection",
-            entityType: "MarketReport",
-            entityId: existingReport._id.toString(),
-            
-        }});
+        await historyCollection.updateOne({ _id: history._id }, {
+            $set: {
+                ...history,
+                user: user ? user.sub : null,
+                action: "updated_market_report_subsection",
+                entityType: "MarketReport",
+                entityId: existingReport._id.toString(),
+
+            }
+        });
         return {
             success: true,
             message: `Subsection "${this.getSubsectionTitle(subsectionKey)}" in section "${sectionKey}" updated successfully`,

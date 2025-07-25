@@ -16,6 +16,7 @@ export class HistoryService {
             ]
         };
         if (documentType) {
+            
             query.entityType = documentType;
         }
         if (search) {
