@@ -1,6 +1,6 @@
 import { Controller, Post, Get, Body, Param, Put, UseGuards, Req, Delete } from '@nestjs/common';
-import { NbcPapersService } from './nbc-papers.service';
-import { CreateNbcPaperDto } from './create-nbc-paper.dto';
+import { NbcPapersService } from './nbcPapers.service';
+import { CreateNbcPaperDto } from './createNbcPaper.dto';
 import { UpdateNbcPaperDto } from './update-nbc-paper.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 

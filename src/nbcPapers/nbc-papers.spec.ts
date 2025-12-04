@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NbcPapers } from './nbc-papers';
+import { NbcPapers } from './nbcPapers';
 
 describe('NbcPapers', () => {
   let provider: NbcPapers;

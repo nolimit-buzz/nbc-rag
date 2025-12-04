@@ -29,7 +29,6 @@ export class User {
   @Prop()
   refreshToken?: string;
 
-  // Timestamps will be automatically added by Mongoose
   createdAt?: Date;
   updatedAt?: Date;
 }

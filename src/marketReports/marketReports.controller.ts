@@ -1,8 +1,8 @@
 import { Controller, Post, Get, Put, Patch, Delete, Body, Param, Query, UseGuards, Req } from '@nestjs/common';
-import { MarketReportsService } from './market-reports.service';
-import { CreateMarketReportDto } from './create-market-report.dto';
-import { UpdateMarketReportSectionDto, UpdateSubsectionDto } from './update-market-report-section.dto';
-import { UpdateMarketReportDto } from './update-market-report.dto';
+import { MarketReportsService } from './marketReports.service';
+import { CreateMarketReportDto } from './createMarketReport.dto';
+import { UpdateMarketReportSectionDto, UpdateSubsectionDto } from './updateMarketReportSection.dto';
+import { UpdateMarketReportDto } from './updateMarketReport.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('market-reports')

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { MongodbService } from '../mongodb/mongodb.service';
-import { CreateNbcPaperDto } from './create-nbc-paper.dto';
+import { CreateNbcPaperDto } from './createNbcPaper.dto';
 import { UpdateNbcPaperDto } from './update-nbc-paper.dto';
 import { tool } from "@langchain/core/tools";
 import z from 'zod';

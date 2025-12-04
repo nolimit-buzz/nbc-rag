@@ -13,7 +13,7 @@ async function bootstrap() {
   }));
   
   app.enableCors({
-    origin: '*', // <-- Change to specific domain(s) in production
+    origin: 'https://digicred.netlify.app', // Allow specific origin
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true, // if you're using cookies/auth
   });

@@ -1,12 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { MongodbService } from '../mongodb/mongodb.service';
-import { CreateMarketReportDto } from './create-market-report.dto';
+import { CreateMarketReportDto } from './createMarketReport.dto';
 import { ChatOpenAI } from '@langchain/openai';
 import { PromptTemplate } from '@langchain/core/prompts';
 import * as MarkdownIt from 'markdown-it';
 import { ObjectId } from 'mongodb';
-import { UpdateMarketReportSectionDto } from './update-market-report-section.dto';
-import { UpdateMarketReportDto } from './update-market-report.dto';
+import { UpdateMarketReportSectionDto } from './updateMarketReportSection.dto';
+import { UpdateMarketReportDto } from './updateMarketReport.dto';
+import { marketReportPrompt } from 'src/lib/prompts';
+import { Model } from 'mongoose';
+import { InjectModel } from '@nestjs/mongoose';
+import { MarketReport, MarketReportDocument } from './marketReport.entity';
+import { Paper, PaperDocument } from '../paper/paper.entity';
 
 export interface MarketReportSection {
     title: string;
@@ -20,9 +25,9 @@ export interface MarketReportSection {
 
 @Injectable()
 export class MarketReportsService {
-    constructor(private readonly mongodbService: MongodbService) { }
+    constructor( @InjectModel(Paper.name) private paperModel: Model<PaperDocument>,private readonly mongodbService: MongodbService) { }
 
-    private collectionName: string = "market_reports";
+    private collectionName: string = "papers";
 
     async getMarketReportById(id: string, user?: any) {
         const collection = await this.mongodbService.connect(this.collectionName);
@@ -868,9 +873,8 @@ Website: [Actual website]
         }
     }
 
-    async createMarketReport(createMarketReportDto: CreateMarketReportDto, user?: any) {
-
-        const collection = await this.mongodbService.connect(this.collectionName);
+    async createMarketReport(body: any, user?: any) {
+        console.log("body", body    );
 
         const llm = new ChatOpenAI({
             model: "gpt-4o",
@@ -878,13 +882,12 @@ Website: [Actual website]
             streaming: true,
         });
 
-        const year = (createMarketReportDto as any).year || new Date().getFullYear();
-        const prompt = this.generateMarketReportPrompt(createMarketReportDto.countryName, year);
+        const year = (body as any).year || new Date().getFullYear();
+        const prompt = marketReportPrompt(body.countryName, year);
         const question = PromptTemplate.fromTemplate(prompt);
         const chain = question.pipe(llm);
-
         const response = await chain.invoke({
-            countryName: createMarketReportDto.countryName,
+            countryName: body.countryName,
             year: year,
         });
 
@@ -903,47 +906,34 @@ Website: [Actual website]
         const userData = await usersCollection.findOne({ _id: new ObjectId(user.sub) });
         const author = `${userData?.firstName} ${userData?.lastName} (${userData?.email})`;
 
-        const marketReportData = {
-            title: `African Fixed Income Market Guide - ${createMarketReportDto.countryName} (${year})`,
-            countryName: createMarketReportDto.countryName,
-            year: year,
-            description: createMarketReportDto.description || `Market report for ${createMarketReportDto.countryName} - ${year}`,
+        const marketReportData = new this.paperModel({
+            paperType: "market_report",
             author: author,
-            createdBy: userData?._id.toString(),
-            content,
-            status: "draft",
-            htmlContent: response.content.toString(),
+            collaborators: [userData?._id.toString()],
             createdAt: new Date(),
-            updatedAt: new Date()
-        };
-
-        const newMarketReport = await collection.insertOne(marketReportData);
-
-        const activityCollection = await this.mongodbService.connect("history");
-        await activityCollection.insertOne({
-            user: user ? user.sub : null,
-            action: "created_market_report",
-            entityType: "MarketReport",
-            entityId: newMarketReport.insertedId.toString(),
-            createdBy: userData?._id.toString(),
-            metadata: {
-                author: marketReportData.author,
-                name: marketReportData.title,
-                countryName: marketReportData.countryName,
-                year: marketReportData.year,
-                title: marketReportData.title,
-                status: marketReportData.status,
-                createdAt: marketReportData.createdAt,
-                updatedAt: marketReportData.updatedAt
+            updatedAt: new Date(),
+            details: {
+                title: `African Fixed Income Market Guide - ${body.countryName} (${year})`,
+                countryName: body.countryName,
+                year: year,
+                description: body.description || `Market report for ${body.countryName} - ${year}`,
+                content,
+                status: "draft",
+                htmlContent: response.content.toString(),
             }
         });
+
+        console.log("marketReportData", marketReportData);
+        const newPaper = await marketReportData.save();
+        console.log("newPaper created", newPaper);
+
         return {
             success: true,
-            marketReport: {
-                id: newMarketReport.insertedId,
-                createdAt: marketReportData.createdAt,
-                updatedAt: marketReportData.updatedAt,
-                author: marketReportData.author
+            paper: {
+                id: (newPaper._id as ObjectId).toString() as string,
+                createdAt: newPaper.createdAt as Date,
+                updatedAt: newPaper.updatedAt as Date,
+                author: newPaper.author as string
             }
         };
     }
